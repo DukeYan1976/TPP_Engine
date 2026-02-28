@@ -129,11 +129,17 @@ int main() {
     CamServiceImpl service;
     
     ServerBuilder builder;
+    
+    // 设置最大消息大小为100MB
+    builder.SetMaxReceiveMessageSize(100 * 1024 * 1024);
+    builder.SetMaxSendMessageSize(100 * 1024 * 1024);
+    
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
     builder.RegisterService(&service);
     
     std::unique_ptr<Server> server(builder.BuildAndStart());
     std::cout << "Server listening on " << server_address << std::endl;
+    std::cout << "Max message size: 100 MB" << std::endl;
     std::cout << "Type 'exit' to shutdown server" << std::endl;
     
     std::thread server_thread([&server]() {

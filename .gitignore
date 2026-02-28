@@ -1,32 +1,39 @@
-# Build directories
-build/
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
 
-# Generated files
-*.pb.cc
-*.pb.h
-*_pb2.py
-*_pb2_grpc.py
-
-# Temporary files
+# C++
+build/
 *.o
 *.so
 *.dylib
 *.dll
-/tmp/
-*.stp.tmp
+*.a
+*.lib
+*.exe
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# macOS
+# Logs
+*.log
+nohup.out
+
+# Large test files (>10MB)
+python_client/testparts/01_Finishing.stp
+python_client/testparts/blademachineevaluationwithamblygon.stp
+python_client/testparts/impeller_test_model.step
+python_client/testparts/*.stp
+!python_client/testparts/as1-oc-214.stp
+!python_client/testparts/BsplineSurface01.stp
+!python_client/testparts/Penrose.stp
+
+# Temp files
+*.tmp
 .DS_Store
-
-# Python
-*.egg-info/
-dist/

@@ -21,7 +21,12 @@ class CamCalculator:
     def connect(self):
         """连接到gRPC服务器"""
         try:
-            self.channel = grpc.insecure_channel(self.server_address)
+            # 设置最大消息大小为100MB
+            options = [
+                ('grpc.max_send_message_length', 100 * 1024 * 1024),
+                ('grpc.max_receive_message_length', 100 * 1024 * 1024),
+            ]
+            self.channel = grpc.insecure_channel(self.server_address, options=options)
             self.stub = CamCalculationServiceStub(self.channel)
             return True
         except Exception as e:

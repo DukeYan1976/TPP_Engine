@@ -147,10 +147,11 @@ extern "C" void GenerateSurfaceToolpath(
         double shrink_step_u = u_range / (2.0 * (num_paths + 1));
         double shrink_step_v = v_range / (2.0 * (num_paths + 1));
         
-        // 采样密度：按参数空间单位长度的采样数
-        const double density = 20.0;
+        // 每层环固定采样点数，不依赖参数空间大小
+        const int POINTS_PER_EDGE = 25;
         
         std::vector<double> all_points;
+        all_points.reserve(num_paths * (4 * POINTS_PER_EDGE + 1) * 3);
         
         for (int layer = 0; layer < num_paths; ++layer) {
             double shrink_u = layer * shrink_step_u;
@@ -163,12 +164,11 @@ extern "C" void GenerateSurfaceToolpath(
             
             if (u1 <= u0 || v1 <= v0) break;
             
+            int nu = POINTS_PER_EDGE;
+            int nv = POINTS_PER_EDGE;
+            
             double du = u1 - u0;
             double dv = v1 - v0;
-            
-            // 每条边按自身参数长度独立计算采样数
-            int nu = std::max(2, (int)(du * density));
-            int nv = std::max(2, (int)(dv * density));
             
             // 底边 (v=v0, u: u0->u1)
             for (int i = 0; i < nu; ++i) {

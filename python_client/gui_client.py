@@ -67,15 +67,17 @@ class CamGuiClient(QMainWindow):
         
         # 数据
         self.step_file_path = None
+        self.step_data = None  # 缓存文件数据，避免重复读取
         self.shape = None
         self.faces = []
-        self.face_ais_map = {}  # face的AIS对象到索引的映射
         self.selected_face = None
         self.selected_face_index = -1  # 记录选中面的索引
         self.selected_face_ais = None
         self.toolpath_points = None
         self.toolpath_ais = None  # 保存刀轨AIS对象用于删除
         self.calculator = CamCalculator()
+        self.worker = None  # 后台计算线程
+        self._callback_registered = False  # 回调是否已注册
         
         # 连接服务器
         try:
@@ -225,6 +227,33 @@ class CamGuiClient(QMainWindow):
         # 设置为面选择模式
         self.viewer._display.SetSelectionModeFace()
     
+    def _reset_state(self):
+        """重置模型相关状态，释放旧资源"""
+        # 等待正在运行的计算线程
+        if self.worker and self.worker.isRunning():
+            self.worker.finished.disconnect()
+            self.worker.error.disconnect()
+            self.worker.wait(3000)
+        self.worker = None
+        
+        # 清除AIS对象（EraseAll之前先置空引用，避免对已移除对象操作）
+        self.selected_face_ais = None
+        self.toolpath_ais = None
+        
+        # 清除模型数据
+        self.shape = None
+        self.faces = []
+        self.selected_face = None
+        self.selected_face_index = -1
+        self.toolpath_points = None
+        self.step_data = None
+        
+        # 重置UI
+        self.btn_calculate.setEnabled(False)
+        self.face_label.setText("请在3D视图中点击选择一个面")
+        self.point_count_label.setText("")
+        self.progress.setVisible(False)
+    
     def load_step_file(self):
         """加载STEP文件"""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -234,11 +263,25 @@ class CamGuiClient(QMainWindow):
         if not file_path:
             return
         
+        # 清理旧模型状态
+        self._reset_state()
+        
         self.step_file_path = file_path
-        self.file_label.setText(os.path.basename(file_path))
+        self.file_label.setText("正在加载...")
         self.status_label.setText("正在加载STEP文件...")
         
         try:
+            # 检查文件大小
+            file_size_mb = os.path.getsize(file_path) / (1024 * 1024)
+            is_large_file = file_size_mb > 100
+            
+            if is_large_file:
+                QMessageBox.warning(
+                    self, "大文件警告",
+                    f"文件大小 {file_size_mb:.1f} MB，超过100MB。\n"
+                    f"将作为整体Shape显示以保证性能，面选择使用几何匹配模式。"
+                )
+            
             # 读取STEP文件
             reader = STEPControl_Reader()
             if reader.ReadFile(file_path) != IFSelect_RetDone:
@@ -249,7 +292,6 @@ class CamGuiClient(QMainWindow):
             
             # 提取所有面
             self.faces = []
-            self.face_ais_map = {}
             explorer = TopExp_Explorer(self.shape, TopAbs_FACE)
             face_index = 0
             while explorer.More():
@@ -258,28 +300,51 @@ class CamGuiClient(QMainWindow):
                 explorer.Next()
                 face_index += 1
             
-            # 显示模型 - 分别显示每个面以便正确选择
+            # 更新文件信息显示
+            self.file_label.setText(
+                f"{os.path.basename(file_path)}\n"
+                f"{len(self.faces)} 个面 | {file_size_mb:.1f} MB"
+            )
+            
+            # 显示模型
             self.viewer._display.EraseAll()
             
-            for i, face in enumerate(self.faces):
-                ais_list = self.viewer._display.DisplayShape(
-                    face,
+            # 大文件或面数多时整体显示，否则逐面显示
+            if is_large_file or len(self.faces) > 500:
+                # 整体显示，面选择通过几何匹配
+                self.viewer._display.DisplayShape(
+                    self.shape,
                     color=Quantity_Color(0.75, 0.75, 0.8, Quantity_TOC_RGB),
                     transparency=0.0,
-                    update=False
+                    update=True
                 )
-                if ais_list and len(ais_list) > 0:
-                    # 使用AIS对象的内存地址作为key
-                    ais_obj = ais_list[0]
-                    self.face_ais_map[id(ais_obj)] = i
+                self.status_label.setText(f"已加载 {len(self.faces)} 个面（整体显示，几何匹配选择）")
+            else:
+                # 逐面显示
+                for face in self.faces:
+                    self.viewer._display.DisplayShape(
+                        face,
+                        color=Quantity_Color(0.75, 0.75, 0.8, Quantity_TOC_RGB),
+                        transparency=0.0,
+                        update=False
+                    )
+                
+                self.viewer._display.Repaint()
+                self.status_label.setText(f"已加载 {len(self.faces)} 个面，请点击选择一个面")
             
-            self.viewer._display.Repaint()
             self.viewer._display.FitAll()
             
-            self.status_label.setText(f"已加载 {len(self.faces)} 个面，请点击选择一个面")
+            # 重新激活面选择模式（必须在DisplayShape之后，否则新对象不会被激活）
+            self.viewer._display.SetSelectionModeFace()
             
-            # 启用面选择
-            self.viewer._display.register_select_callback(self.on_face_selected)
+            # 缓存文件数据
+            with open(file_path, 'rb') as f:
+                self.step_data = f.read()
+            
+            # 只注册一次回调
+            if not self._callback_registered:
+                self.viewer._display.register_select_callback(self.on_face_selected)
+                self._callback_registered = True
             
         except Exception as e:
             QMessageBox.critical(self, "加载错误", f"加载STEP文件失败:\n{e}")
@@ -290,40 +355,55 @@ class CamGuiClient(QMainWindow):
         if not shapes or not self.faces:
             return
         
-        # 获取选中的AIS对象
-        selected_ais = shapes[0]
+        # shapes[0] 是 Context.SelectedShape() 返回的 TopoDS_Shape
+        selected_shape = shapes[0]
         
-        # 通过AIS映射直接获取面索引
-        face_index = self.face_ais_map.get(id(selected_ais), -1)
+        # 提取面
+        selected_face = None
+        if selected_shape.ShapeType() == TopAbs_FACE:
+            selected_face = topods.Face(selected_shape)
+        else:
+            exp = TopExp_Explorer(selected_shape, TopAbs_FACE)
+            if exp.More():
+                selected_face = topods.Face(exp.Current())
         
-        # 如果映射失败，尝试几何匹配
+        if not selected_face:
+            return
+        
+        # 在 self.faces 中查找匹配：IsSame > IsPartner > 几何匹配
+        face_index = -1
+        for i, face in enumerate(self.faces):
+            if face.IsSame(selected_face):
+                face_index = i
+                break
+        
         if face_index == -1:
-            selected_face = None
-            if selected_ais.ShapeType() == TopAbs_FACE:
-                selected_face = topods.Face(selected_ais)
-            else:
-                exp = TopExp_Explorer(selected_ais, TopAbs_FACE)
-                if exp.More():
-                    selected_face = topods.Face(exp.Current())
+            for i, face in enumerate(self.faces):
+                if face.IsPartner(selected_face):
+                    face_index = i
+                    break
+        
+        if face_index == -1:
+            # 几何属性匹配作为最后手段
+            props_selected = GProp_GProps()
+            brepgprop.SurfaceProperties(selected_face, props_selected)
+            center_selected = props_selected.CentreOfMass()
+            area_selected = props_selected.Mass()
             
-            if selected_face:
-                props_selected = GProp_GProps()
-                brepgprop.SurfaceProperties(selected_face, props_selected)
-                center_selected = props_selected.CentreOfMass()
-                area_selected = props_selected.Mass()
+            best_dist = float('inf')
+            for i, face in enumerate(self.faces):
+                props_face = GProp_GProps()
+                brepgprop.SurfaceProperties(face, props_face)
+                center = props_face.CentreOfMass()
+                area = props_face.Mass()
                 
-                for i, face in enumerate(self.faces):
-                    props_face = GProp_GProps()
-                    brepgprop.SurfaceProperties(face, props_face)
-                    center = props_face.CentreOfMass()
-                    area = props_face.Mass()
-                    
-                    if (abs(area - area_selected) < 0.01 and
-                        abs(center.X() - center_selected.X()) < 0.01 and
-                        abs(center.Y() - center_selected.Y()) < 0.01 and
-                        abs(center.Z() - center_selected.Z()) < 0.01):
+                if abs(area - area_selected) < 0.01:
+                    dist = ((center.X() - center_selected.X())**2 +
+                            (center.Y() - center_selected.Y())**2 +
+                            (center.Z() - center_selected.Z())**2)
+                    if dist < best_dist and dist < 0.01:
+                        best_dist = dist
                         face_index = i
-                        break
         
         if face_index == -1 or face_index >= len(self.faces):
             return
@@ -336,15 +416,13 @@ class CamGuiClient(QMainWindow):
             self.viewer._display.Context.Remove(self.selected_face_ais, True)
             self.selected_face_ais = None
         
-        # 高亮显示选中的面（红色，半透明）
+        # 高亮显示选中的面（红色，半透明，不参与选择）
         self.selected_face_ais = AIS_Shape(self.selected_face)
         self.selected_face_ais.SetColor(Quantity_Color(1.0, 0.2, 0.2, Quantity_TOC_RGB))
-        self.selected_face_ais.SetTransparency(0.3)  # 半透明，不遮挡选择
+        self.selected_face_ais.SetTransparency(0.3)
         
-        # 设置为不可选择，避免干扰后续选择
-        self.viewer._display.Context.Display(self.selected_face_ais, False)
-        self.viewer._display.Context.Deactivate(self.selected_face_ais)
-        self.viewer._display.Context.UpdateCurrentViewer()
+        # selectionMode=-1 表示不激活任何选择模式，避免干扰面选择
+        self.viewer._display.Context.Display(self.selected_face_ais, 1, -1, True)
         
         # 获取面积和UV范围
         props = GProp_GProps()
@@ -363,8 +441,14 @@ class CamGuiClient(QMainWindow):
     
     def calculate_toolpath(self):
         """计算刀路"""
-        if not self.selected_face or not self.step_file_path:
+        if not self.selected_face or not self.step_data:
             return
+        
+        # 如果有正在运行的计算，断开信号避免干扰
+        if self.worker and self.worker.isRunning():
+            self.worker.finished.disconnect()
+            self.worker.error.disconnect()
+            self.worker.wait(3000)
         
         # 清除上一次的刀轨显示
         if self.toolpath_ais:
@@ -373,9 +457,8 @@ class CamGuiClient(QMainWindow):
         self.toolpath_points = None
         self.point_count_label.setText("")  # 清除点数显示
         
-        # 读取STEP文件数据
-        with open(self.step_file_path, 'rb') as f:
-            step_data = f.read()
+        # 使用缓存的文件数据
+        step_data = self.step_data
         
         # 获取参数
         toolpath_mode = self.mode_group.checkedId()
