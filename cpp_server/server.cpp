@@ -52,6 +52,7 @@ class CamServiceImpl final : public CamCalculationService::Service {
         const std::string& step_data = request->step_data();
         int mode = request->toolpath_mode();
         int num_paths = request->num_paths();
+        int start_direction = request->start_direction();  // 0=U向, 1=V向
         
         GenerateSurfaceToolpath(
             step_data.data(),
@@ -60,6 +61,7 @@ class CamServiceImpl final : public CamCalculationService::Service {
             request->step_v(),
             mode,
             num_paths,
+            start_direction,
             &out_points, &out_count
         );
         
@@ -74,7 +76,9 @@ class CamServiceImpl final : public CamCalculationService::Service {
         FreeMockToolpath(out_points);
         
         const char* mode_name = (mode == 1) ? "contour" : "raster";
+        const char* dir_name = (start_direction == 0) ? "U" : "V";
         std::cout << "[SurfaceToolpath] mode=" << mode_name
+                  << " dir=" << dir_name
                   << " num_paths=" << num_paths
                   << " step_u=" << request->step_u()
                   << " step_v=" << request->step_v()

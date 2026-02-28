@@ -1,5 +1,50 @@
 # Python CAM Client
 
+本目录包含两个客户端版本：
+- **GUI客户端**（推荐）：图形化界面，交互式操作
+- **命令行客户端**：快速测试和批处理
+
+---
+
+## GUI客户端（推荐）
+
+**文件**: `gui_client.py`
+
+### 使用方法
+
+```bash
+cd python_client
+python gui_client.py
+```
+
+### 操作步骤
+1. 点击"选择STEP文件"加载模型
+2. 在3D视图中点击选择一个面
+3. 设置刀轨参数（刀路模式、方向、数量）
+4. 点击"计算刀路"执行
+5. 查看绿色刀轨线显示
+
+---
+
+## 命令行客户端
+
+**文件**: `client.py`
+
+### 使用方法
+
+```bash
+# 使用STEP文件（环切模式，5条刀路）
+python client.py testparts/BsplineSurface01.stp contour 5
+
+# 使用STEP文件（行切模式，10条刀路）
+python client.py testparts/BsplineSurface01.stp raster 10
+
+# 使用默认长方体
+python client.py
+```
+
+---
+
 ## 安装依赖
 
 ### 方法 1：使用 Conda（推荐）

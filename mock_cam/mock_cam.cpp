@@ -72,6 +72,7 @@ extern "C" void GenerateSurfaceToolpath(
     double step_v,
     int toolpath_mode,
     int num_paths,
+    int start_direction,
     double** out_points,
     int* out_count
 ) {
@@ -128,9 +129,12 @@ extern "C" void GenerateSurfaceToolpath(
         double u_range = u_max - u_min;
         double v_range = v_max - v_min;
         
-        // 分别计算U和V方向的收缩步长，避免参数范围差异导致的不均匀收缩
+        // 分别计算U和V方向的收缩步长
         double shrink_step_u = u_range / (2.0 * (num_paths + 1));
         double shrink_step_v = v_range / (2.0 * (num_paths + 1));
+        
+        // 采样密度：按参数空间单位长度的采样数
+        const double density = 20.0;
         
         std::vector<double> all_points;
         
@@ -143,19 +147,18 @@ extern "C" void GenerateSurfaceToolpath(
             double v0 = v_min + shrink_v;
             double v1 = v_max - shrink_v;
             
-            // 检查是否收缩到零
             if (u1 <= u0 || v1 <= v0) break;
             
-            // 计算参数空间周长
-            double param_perimeter = 2.0 * ((u1 - u0) + (v1 - v0));
-            if (param_perimeter < 0.001) break;
+            double du = u1 - u0;
+            double dv = v1 - v0;
             
-            // 根据参数空间周长计算采样数
-            int samples_per_side = std::max(10, (int)(param_perimeter * 20));
+            // 每条边按自身参数长度独立计算采样数
+            int nu = std::max(2, (int)(du * density));
+            int nv = std::max(2, (int)(dv * density));
             
             // 底边 (v=v0, u: u0->u1)
-            for (int i = 0; i <= samples_per_side; ++i) {
-                double u = u0 + (u1 - u0) * i / samples_per_side;
+            for (int i = 0; i < nu; ++i) {
+                double u = u0 + du * i / nu;
                 gp_Pnt pnt;
                 surface->D0(u, v0, pnt);
                 all_points.push_back(pnt.X());
@@ -163,9 +166,9 @@ extern "C" void GenerateSurfaceToolpath(
                 all_points.push_back(pnt.Z());
             }
             
-            // 右边 (u=u1, v: v0->v1) - 跳过第一个点避免重复
-            for (int i = 1; i <= samples_per_side; ++i) {
-                double v = v0 + (v1 - v0) * i / samples_per_side;
+            // 右边 (u=u1, v: v0->v1)
+            for (int i = 0; i < nv; ++i) {
+                double v = v0 + dv * i / nv;
                 gp_Pnt pnt;
                 surface->D0(u1, v, pnt);
                 all_points.push_back(pnt.X());
@@ -173,9 +176,9 @@ extern "C" void GenerateSurfaceToolpath(
                 all_points.push_back(pnt.Z());
             }
             
-            // 顶边 (v=v1, u: u1->u0) - 跳过第一个点
-            for (int i = 1; i <= samples_per_side; ++i) {
-                double u = u1 - (u1 - u0) * i / samples_per_side;
+            // 顶边 (v=v1, u: u1->u0)
+            for (int i = 0; i < nu; ++i) {
+                double u = u1 - du * i / nu;
                 gp_Pnt pnt;
                 surface->D0(u, v1, pnt);
                 all_points.push_back(pnt.X());
@@ -183,15 +186,22 @@ extern "C" void GenerateSurfaceToolpath(
                 all_points.push_back(pnt.Z());
             }
             
-            // 左边 (u=u0, v: v1->v0) - 跳过第一个和最后一个点
-            for (int i = 1; i < samples_per_side; ++i) {
-                double v = v1 - (v1 - v0) * i / samples_per_side;
+            // 左边 (u=u0, v: v1->v0)
+            for (int i = 0; i < nv; ++i) {
+                double v = v1 - dv * i / nv;
                 gp_Pnt pnt;
                 surface->D0(u0, v, pnt);
                 all_points.push_back(pnt.X());
                 all_points.push_back(pnt.Y());
                 all_points.push_back(pnt.Z());
             }
+            
+            // 闭合：重复起点
+            gp_Pnt pnt0;
+            surface->D0(u0, v0, pnt0);
+            all_points.push_back(pnt0.X());
+            all_points.push_back(pnt0.Y());
+            all_points.push_back(pnt0.Z());
         }
         
         if (all_points.empty()) {
@@ -227,28 +237,59 @@ extern "C" void GenerateSurfaceToolpath(
         double* points = (double*)malloc(total_points * 3 * sizeof(double));
         
         int idx = 0;
-        for (int i = 0; i < v_steps; ++i) {
-            double v = std::min(v_min + i * step_v, v_max);
-            
-            if (i % 2 == 0) {
-                for (int j = 0; j < u_steps; ++j) {
-                    double u = std::min(u_min + j * step_u, u_max);
-                    
-                    gp_Pnt pnt;
-                    surface->D0(u, v, pnt);
-                    points[idx++] = pnt.X();
-                    points[idx++] = pnt.Y();
-                    points[idx++] = pnt.Z();
+        
+        if (start_direction == 0) {
+            // U向扫描：外层U，内层V
+            for (int j = 0; j < u_steps; ++j) {
+                double u = std::min(u_min + j * step_u, u_max);
+                
+                if (j % 2 == 0) {
+                    for (int i = 0; i < v_steps; ++i) {
+                        double v = std::min(v_min + i * step_v, v_max);
+                        
+                        gp_Pnt pnt;
+                        surface->D0(u, v, pnt);
+                        points[idx++] = pnt.X();
+                        points[idx++] = pnt.Y();
+                        points[idx++] = pnt.Z();
+                    }
+                } else {
+                    for (int i = v_steps - 1; i >= 0; --i) {
+                        double v = std::min(v_min + i * step_v, v_max);
+                        
+                        gp_Pnt pnt;
+                        surface->D0(u, v, pnt);
+                        points[idx++] = pnt.X();
+                        points[idx++] = pnt.Y();
+                        points[idx++] = pnt.Z();
+                    }
                 }
-            } else {
-                for (int j = u_steps - 1; j >= 0; --j) {
-                    double u = std::min(u_min + j * step_u, u_max);
-                    
-                    gp_Pnt pnt;
-                    surface->D0(u, v, pnt);
-                    points[idx++] = pnt.X();
-                    points[idx++] = pnt.Y();
-                    points[idx++] = pnt.Z();
+            }
+        } else {
+            // V向扫描：外层V，内层U
+            for (int i = 0; i < v_steps; ++i) {
+                double v = std::min(v_min + i * step_v, v_max);
+                
+                if (i % 2 == 0) {
+                    for (int j = 0; j < u_steps; ++j) {
+                        double u = std::min(u_min + j * step_u, u_max);
+                        
+                        gp_Pnt pnt;
+                        surface->D0(u, v, pnt);
+                        points[idx++] = pnt.X();
+                        points[idx++] = pnt.Y();
+                        points[idx++] = pnt.Z();
+                    }
+                } else {
+                    for (int j = u_steps - 1; j >= 0; --j) {
+                        double u = std::min(u_min + j * step_u, u_max);
+                        
+                        gp_Pnt pnt;
+                        surface->D0(u, v, pnt);
+                        points[idx++] = pnt.X();
+                        points[idx++] = pnt.Y();
+                        points[idx++] = pnt.Z();
+                    }
                 }
             }
         }

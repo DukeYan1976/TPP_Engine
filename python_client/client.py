@@ -176,20 +176,22 @@ def visualize(shape, toolpath_points, highlight_face=None):
     """可视化几何和刀轨"""
     print(f"Visualizing {len(toolpath_points)} toolpath points...")
     
-    # 对于大量点，采样显示以提高性能
-    max_display_points = 5000
-    if len(toolpath_points) > max_display_points:
-        step = len(toolpath_points) // max_display_points
-        display_points = toolpath_points[::step]
-        print(f"Downsampling to {len(display_points)} points for display performance")
-    else:
-        display_points = toolpath_points
+    # 计算相邻点距离，检测环边界（距离跳变处）
+    diffs = np.diff(toolpath_points, axis=0)
+    dists = np.sqrt(np.sum(diffs**2, axis=1))
+    median_dist = np.median(dists[dists > 1e-9]) if np.any(dists > 1e-9) else 1.0
+    threshold = median_dist * 5.0
     
     edges = []
-    for i in range(len(display_points) - 1):
-        p1 = gp_Pnt(display_points[i][0], display_points[i][1], display_points[i][2])
-        p2 = gp_Pnt(display_points[i+1][0], display_points[i+1][1], display_points[i+1][2])
-        edge = BRepBuilderAPI_MakeEdge(p1, p2).Edge()
+    for i in range(len(toolpath_points) - 1):
+        if dists[i] < 1e-9 or dists[i] > threshold:
+            continue  # 跳过重合点和环间跳变
+        p1 = toolpath_points[i]
+        p2 = toolpath_points[i + 1]
+        edge = BRepBuilderAPI_MakeEdge(
+            gp_Pnt(float(p1[0]), float(p1[1]), float(p1[2])),
+            gp_Pnt(float(p2[0]), float(p2[1]), float(p2[2]))
+        ).Edge()
         edges.append(edge)
     
     print("Building wire...")

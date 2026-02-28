@@ -30,6 +30,7 @@ MOCK_CAM_API void GenerateSurfaceToolpath(
     double step_v,
     int toolpath_mode,
     int num_paths,
+    int start_direction,
     double** out_points,
     int* out_count
 );
