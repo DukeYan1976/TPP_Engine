@@ -1,0 +1,32 @@
+# Build directories
+build/
+__pycache__/
+*.pyc
+
+# Generated files
+*.pb.cc
+*.pb.h
+*_pb2.py
+*_pb2_grpc.py
+
+# Temporary files
+*.o
+*.so
+*.dylib
+*.dll
+/tmp/
+*.stp.tmp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Python
+*.egg-info/
+dist/

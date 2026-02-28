@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package cam;
+
+service CamCalculationService {
+  rpc CalculateToolpath(CalculationRequest) returns (CalculationResponse);
+  rpc CalculateSurfaceToolpath(SurfaceCalculationRequest) returns (CalculationResponse);
+}
+
+message CalculationRequest {
+  double X_min = 1;
+  double X_max = 2;
+  double Y_min = 3;
+  double Y_max = 4;
+  double Z_max = 5;
+}
+
+message SurfaceCalculationRequest {
+  bytes step_data = 1;
+  double step_u = 2;
+  double step_v = 3;
+  int32 toolpath_mode = 4;  // 0=行切, 1=环切
+  int32 num_paths = 5;      // 刀路条数
+}
+
+message CalculationResponse {
+  bytes raw_vertices = 1;
+  int32 point_count = 2;
+}
