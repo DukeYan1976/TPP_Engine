@@ -73,6 +73,7 @@ extern "C" void GenerateSurfaceToolpath(
     int toolpath_mode,
     int num_paths,
     int start_direction,
+    int face_index,
     double** out_points,
     int* out_count
 ) {
@@ -92,22 +93,35 @@ extern "C" void GenerateSurfaceToolpath(
     reader.TransferRoots();
     TopoDS_Shape shape = reader.OneShape();
     
-    TopoDS_Face largest_face;
-    double max_area = 0.0;
+    TopoDS_Face target_face;
     
-    for (TopExp_Explorer exp(shape, TopAbs_FACE); exp.More(); exp.Next()) {
-        TopoDS_Face face = TopoDS::Face(exp.Current());
-        GProp_GProps props;
-        BRepGProp::SurfaceProperties(face, props);
-        double area = props.Mass();
-        
-        if (area > max_area) {
-            max_area = area;
-            largest_face = face;
+    // 如果指定了face_index，使用指定的面；否则选择最大面
+    if (face_index >= 0) {
+        int current_index = 0;
+        for (TopExp_Explorer exp(shape, TopAbs_FACE); exp.More(); exp.Next()) {
+            if (current_index == face_index) {
+                target_face = TopoDS::Face(exp.Current());
+                break;
+            }
+            current_index++;
+        }
+    } else {
+        // 自动选择最大面
+        double max_area = 0.0;
+        for (TopExp_Explorer exp(shape, TopAbs_FACE); exp.More(); exp.Next()) {
+            TopoDS_Face face = TopoDS::Face(exp.Current());
+            GProp_GProps props;
+            BRepGProp::SurfaceProperties(face, props);
+            double area = props.Mass();
+            
+            if (area > max_area) {
+                max_area = area;
+                target_face = face;
+            }
         }
     }
     
-    if (largest_face.IsNull()) {
+    if (target_face.IsNull()) {
         *out_points = nullptr;
         *out_count = 0;
         return;
@@ -115,7 +129,7 @@ extern "C" void GenerateSurfaceToolpath(
     
     if (toolpath_mode == 1) {
         // 环切模式：在参数空间进行2D offset
-        Handle(Geom_Surface) surface = BRep_Tool::Surface(largest_face);
+        Handle(Geom_Surface) surface = BRep_Tool::Surface(target_face);
         
         if (surface.IsNull()) {
             *out_points = nullptr;
@@ -124,7 +138,7 @@ extern "C" void GenerateSurfaceToolpath(
         }
         
         Standard_Real u_min, u_max, v_min, v_max;
-        BRepTools::UVBounds(largest_face, u_min, u_max, v_min, v_max);
+        BRepTools::UVBounds(target_face, u_min, u_max, v_min, v_max);
         
         double u_range = u_max - u_min;
         double v_range = v_max - v_min;
@@ -219,7 +233,7 @@ extern "C" void GenerateSurfaceToolpath(
         
     } else {
         // 行切模式
-        Handle(Geom_Surface) surface = BRep_Tool::Surface(largest_face);
+        Handle(Geom_Surface) surface = BRep_Tool::Surface(target_face);
         
         if (surface.IsNull()) {
             *out_points = nullptr;
@@ -228,7 +242,7 @@ extern "C" void GenerateSurfaceToolpath(
         }
         
         Standard_Real u_min, u_max, v_min, v_max;
-        BRepTools::UVBounds(largest_face, u_min, u_max, v_min, v_max);
+        BRepTools::UVBounds(target_face, u_min, u_max, v_min, v_max);
         
         int u_steps = (int)((u_max - u_min) / step_u) + 1;
         int v_steps = (int)((v_max - v_min) / step_v) + 1;

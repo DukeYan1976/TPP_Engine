@@ -22,6 +22,8 @@ message SurfaceCalculationRequest {
   int32 toolpath_mode = 4;  // 0=行切, 1=环切
   int32 num_paths = 5;      // 刀路条数
   int32 start_direction = 6; // 0=U向, 1=V向 (仅行切模式有效)
+  int32 face_index = 7;     // 面索引 (0-based, -1表示自动选择最大面)
+  string model_hash = 8;    // 模型哈希值，用于缓存识别（空则强制上传）
 }
 
 message CalculationResponse {

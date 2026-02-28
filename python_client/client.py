@@ -176,29 +176,45 @@ def visualize(shape, toolpath_points, highlight_face=None):
     """可视化几何和刀轨"""
     print(f"Visualizing {len(toolpath_points)} toolpath points...")
     
+    from OCC.Core.AIS import AIS_Shape
+    from OCC.Core.Prs3d import Prs3d_LineAspect
+    from OCC.Core.Aspect import Aspect_TOL_SOLID
+    from OCC.Core.BRep import BRep_Builder
+    from OCC.Core.TopoDS import TopoDS_Compound
+    
     # 计算相邻点距离，检测环边界（距离跳变处）
     diffs = np.diff(toolpath_points, axis=0)
     dists = np.sqrt(np.sum(diffs**2, axis=1))
     median_dist = np.median(dists[dists > 1e-9]) if np.any(dists > 1e-9) else 1.0
     threshold = median_dist * 5.0
     
-    edges = []
+    # 按连续段分组构建 wire
+    compound = TopoDS_Compound()
+    builder = BRep_Builder()
+    builder.MakeCompound(compound)
+    
+    wire_builder = BRepBuilderAPI_MakeWire()
+    has_edges = False
+    
     for i in range(len(toolpath_points) - 1):
         if dists[i] < 1e-9 or dists[i] > threshold:
-            continue  # 跳过重合点和环间跳变
+            # 段断开：保存当前 wire，开始新段
+            if has_edges:
+                builder.Add(compound, wire_builder.Wire())
+                wire_builder = BRepBuilderAPI_MakeWire()
+                has_edges = False
+            continue
         p1 = toolpath_points[i]
         p2 = toolpath_points[i + 1]
         edge = BRepBuilderAPI_MakeEdge(
             gp_Pnt(float(p1[0]), float(p1[1]), float(p1[2])),
             gp_Pnt(float(p2[0]), float(p2[1]), float(p2[2]))
         ).Edge()
-        edges.append(edge)
-    
-    print("Building wire...")
-    wire_builder = BRepBuilderAPI_MakeWire()
-    for edge in edges:
         wire_builder.Add(edge)
-    toolpath_wire = wire_builder.Wire()
+        has_edges = True
+    
+    if has_edges:
+        builder.Add(compound, wire_builder.Wire())
     
     print("Initializing display...")
     display, start_display, add_menu, add_function_to_menu = init_display('pyqt5')
@@ -213,15 +229,9 @@ def visualize(shape, toolpath_points, highlight_face=None):
                            transparency=0.5, update=False)
     
     print("Displaying toolpath...")
-    # 显示刀轨（加粗绿色）
-    from OCC.Core.AIS import AIS_Shape
-    from OCC.Core.Prs3d import Prs3d_LineAspect
-    from OCC.Core.Aspect import Aspect_TOL_SOLID
-    
-    ais_toolpath = AIS_Shape(toolpath_wire)
+    ais_toolpath = AIS_Shape(compound)
     ais_toolpath.SetColor(Quantity_Color(0.0, 0.8, 0.0, Quantity_TOC_RGB))
     
-    # 设置线宽
     drawer = ais_toolpath.Attributes()
     line_aspect = Prs3d_LineAspect(Quantity_Color(0.0, 0.8, 0.0, Quantity_TOC_RGB), Aspect_TOL_SOLID, 3.0)
     drawer.SetWireAspect(line_aspect)

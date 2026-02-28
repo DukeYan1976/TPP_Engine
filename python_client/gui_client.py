@@ -36,11 +36,12 @@ class ToolpathWorker(QThread):
     finished = pyqtSignal(np.ndarray)
     error = pyqtSignal(str)
     
-    def __init__(self, calculator, step_data, params):
+    def __init__(self, calculator, step_data, params, face_index):
         super().__init__()
         self.calculator = calculator
         self.step_data = step_data
         self.params = params
+        self.face_index = face_index
     
     def run(self):
         try:
@@ -50,7 +51,8 @@ class ToolpathWorker(QThread):
                 self.params['num_paths'],
                 self.params['step_u'],
                 self.params['step_v'],
-                self.params['start_direction']
+                self.params['start_direction'],
+                self.face_index
             )
             self.finished.emit(points)
         except Exception as e:
@@ -67,7 +69,9 @@ class CamGuiClient(QMainWindow):
         self.step_file_path = None
         self.shape = None
         self.faces = []
+        self.face_ais_map = {}  # face的AIS对象到索引的映射
         self.selected_face = None
+        self.selected_face_index = -1  # 记录选中面的索引
         self.selected_face_ais = None
         self.toolpath_points = None
         self.toolpath_ais = None  # 保存刀轨AIS对象用于删除
@@ -186,11 +190,40 @@ class CamGuiClient(QMainWindow):
         control_layout.addWidget(self.point_count_label)
         
         control_layout.addStretch()
+        
+        # 分隔线
+        from PyQt5.QtWidgets import QFrame
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setFrameShadow(QFrame.Sunken)
+        control_layout.addWidget(separator)
+        
+        # 显示模式控制（底部）
+        view_group = QGroupBox("显示模式")
+        view_layout = QVBoxLayout()
+        
+        self.display_mode_group = QButtonGroup()
+        self.radio_shaded = QRadioButton("着色")
+        self.radio_wireframe = QRadioButton("线框")
+        self.radio_shaded.setChecked(True)
+        
+        self.display_mode_group.addButton(self.radio_shaded, 0)
+        self.display_mode_group.addButton(self.radio_wireframe, 1)
+        
+        self.radio_shaded.toggled.connect(lambda checked: self.set_shaded_mode() if checked else None)
+        self.radio_wireframe.toggled.connect(lambda checked: self.set_wireframe_mode() if checked else None)
+        
+        view_layout.addWidget(self.radio_shaded)
+        view_layout.addWidget(self.radio_wireframe)
+        view_group.setLayout(view_layout)
+        control_layout.addWidget(view_group)
         main_layout.addWidget(control_panel, stretch=1)
         
-        # 设置3D视图背景
-        self.viewer._display.View.SetBackgroundColor(Quantity_Color(0.95, 0.95, 0.95, Quantity_TOC_RGB))
-        self.viewer._display.SetSelectionModeVertex()
+        # 设置3D视图背景和选择模式
+        # 深色背景
+        self.viewer._display.View.SetBackgroundColor(Quantity_Color(0.2, 0.2, 0.25, Quantity_TOC_RGB))
+        # 设置为面选择模式
+        self.viewer._display.SetSelectionModeFace()
     
     def load_step_file(self):
         """加载STEP文件"""
@@ -216,20 +249,31 @@ class CamGuiClient(QMainWindow):
             
             # 提取所有面
             self.faces = []
+            self.face_ais_map = {}
             explorer = TopExp_Explorer(self.shape, TopAbs_FACE)
+            face_index = 0
             while explorer.More():
                 face = topods.Face(explorer.Current())
                 self.faces.append(face)
                 explorer.Next()
+                face_index += 1
             
-            # 显示模型
+            # 显示模型 - 分别显示每个面以便正确选择
             self.viewer._display.EraseAll()
-            self.viewer._display.DisplayShape(
-                self.shape, 
-                color=Quantity_Color(0.7, 0.7, 0.7, Quantity_TOC_RGB),
-                transparency=0.5,
-                update=True
-            )
+            
+            for i, face in enumerate(self.faces):
+                ais_list = self.viewer._display.DisplayShape(
+                    face,
+                    color=Quantity_Color(0.75, 0.75, 0.8, Quantity_TOC_RGB),
+                    transparency=0.0,
+                    update=False
+                )
+                if ais_list and len(ais_list) > 0:
+                    # 使用AIS对象的内存地址作为key
+                    ais_obj = ais_list[0]
+                    self.face_ais_map[id(ais_obj)] = i
+            
+            self.viewer._display.Repaint()
             self.viewer._display.FitAll()
             
             self.status_label.setText(f"已加载 {len(self.faces)} 个面，请点击选择一个面")
@@ -243,47 +287,79 @@ class CamGuiClient(QMainWindow):
     
     def on_face_selected(self, shapes, x, y):
         """面选择回调"""
-        if not shapes:
+        if not shapes or not self.faces:
             return
         
-        # 获取选中的面
-        selected_shape = shapes[0]
+        # 获取选中的AIS对象
+        selected_ais = shapes[0]
         
-        # 查找最大面
-        max_area = 0.0
-        largest_face = None
+        # 通过AIS映射直接获取面索引
+        face_index = self.face_ais_map.get(id(selected_ais), -1)
         
-        for face in self.faces:
-            props = GProp_GProps()
-            brepgprop.SurfaceProperties(face, props)
-            area = props.Mass()
+        # 如果映射失败，尝试几何匹配
+        if face_index == -1:
+            selected_face = None
+            if selected_ais.ShapeType() == TopAbs_FACE:
+                selected_face = topods.Face(selected_ais)
+            else:
+                exp = TopExp_Explorer(selected_ais, TopAbs_FACE)
+                if exp.More():
+                    selected_face = topods.Face(exp.Current())
             
-            if area > max_area:
-                max_area = area
-                largest_face = face
+            if selected_face:
+                props_selected = GProp_GProps()
+                brepgprop.SurfaceProperties(selected_face, props_selected)
+                center_selected = props_selected.CentreOfMass()
+                area_selected = props_selected.Mass()
+                
+                for i, face in enumerate(self.faces):
+                    props_face = GProp_GProps()
+                    brepgprop.SurfaceProperties(face, props_face)
+                    center = props_face.CentreOfMass()
+                    area = props_face.Mass()
+                    
+                    if (abs(area - area_selected) < 0.01 and
+                        abs(center.X() - center_selected.X()) < 0.01 and
+                        abs(center.Y() - center_selected.Y()) < 0.01 and
+                        abs(center.Z() - center_selected.Z()) < 0.01):
+                        face_index = i
+                        break
         
-        if largest_face:
-            self.selected_face = largest_face
-            
-            # 高亮显示选中的面
-            if self.selected_face_ais:
-                self.viewer._display.Context.Remove(self.selected_face_ais, True)
-            
-            self.selected_face_ais = AIS_Shape(self.selected_face)
-            self.selected_face_ais.SetColor(Quantity_Color(0.2, 0.5, 1.0, Quantity_TOC_RGB))
-            self.selected_face_ais.SetTransparency(0.3)
-            self.viewer._display.Context.Display(self.selected_face_ais, True)
-            
-            # 获取UV范围
-            u_min, u_max, v_min, v_max = breptools.UVBounds(self.selected_face)
-            
-            self.face_label.setText(
-                f"已选择面\n面积: {max_area:.2f}\n"
-                f"UV范围:\nU[{u_min:.4f}, {u_max:.4f}]\n"
-                f"V[{v_min:.4f}, {v_max:.4f}]"
-            )
-            self.btn_calculate.setEnabled(True)
-            self.status_label.setText("已选择面，可以计算刀路")
+        if face_index == -1 or face_index >= len(self.faces):
+            return
+        
+        self.selected_face = self.faces[face_index]
+        self.selected_face_index = face_index
+        
+        # 清除旧的高亮
+        if self.selected_face_ais:
+            self.viewer._display.Context.Remove(self.selected_face_ais, True)
+            self.selected_face_ais = None
+        
+        # 高亮显示选中的面（红色，半透明）
+        self.selected_face_ais = AIS_Shape(self.selected_face)
+        self.selected_face_ais.SetColor(Quantity_Color(1.0, 0.2, 0.2, Quantity_TOC_RGB))
+        self.selected_face_ais.SetTransparency(0.3)  # 半透明，不遮挡选择
+        
+        # 设置为不可选择，避免干扰后续选择
+        self.viewer._display.Context.Display(self.selected_face_ais, False)
+        self.viewer._display.Context.Deactivate(self.selected_face_ais)
+        self.viewer._display.Context.UpdateCurrentViewer()
+        
+        # 获取面积和UV范围
+        props = GProp_GProps()
+        brepgprop.SurfaceProperties(self.selected_face, props)
+        area = props.Mass()
+        
+        u_min, u_max, v_min, v_max = breptools.UVBounds(self.selected_face)
+        
+        self.face_label.setText(
+            f"已选择面 #{face_index}\n面积: {area:.2f}\n"
+            f"UV范围:\nU[{u_min:.4f}, {u_max:.4f}]\n"
+            f"V[{v_min:.4f}, {v_max:.4f}]"
+        )
+        self.btn_calculate.setEnabled(True)
+        self.status_label.setText("已选择面，可以重新点击选择其他面")
     
     def calculate_toolpath(self):
         """计算刀路"""
@@ -337,7 +413,7 @@ class CamGuiClient(QMainWindow):
         QApplication.processEvents()  # 立即更新UI
         
         # 启动后台线程
-        self.worker = ToolpathWorker(self.calculator, step_data, params)
+        self.worker = ToolpathWorker(self.calculator, step_data, params, self.selected_face_index)
         self.worker.finished.connect(self.on_toolpath_calculated)
         self.worker.error.connect(self.on_toolpath_error)
         self.worker.start()
@@ -411,6 +487,18 @@ class CamGuiClient(QMainWindow):
         """关闭窗口"""
         self.calculator.close()
         event.accept()
+    
+    def set_wireframe_mode(self):
+        """设置线框模式"""
+        # 使用display的内置方法
+        self.viewer._display.SetModeWireFrame()
+        self.status_label.setText("显示模式: 线框")
+    
+    def set_shaded_mode(self):
+        """设置着色模式"""
+        # 使用display的内置方法
+        self.viewer._display.SetModeShaded()
+        self.status_label.setText("显示模式: 着色")
 
 
 def main():

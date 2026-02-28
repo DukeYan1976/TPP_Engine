@@ -4,6 +4,8 @@
 #include "../mock_cam/mock_cam.h"
 #include <iostream>
 #include <thread>
+#include <unordered_map>
+#include <mutex>
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -15,6 +17,11 @@ using cam::CalculationResponse;
 using cam::SurfaceCalculationRequest;
 
 class CamServiceImpl final : public CamCalculationService::Service {
+private:
+    std::unordered_map<std::string, std::string> model_cache_;  // hash -> step_data
+    std::mutex cache_mutex_;
+
+public:
     Status CalculateToolpath(ServerContext* context,
                            const CalculationRequest* request,
                            CalculationResponse* response) override {
@@ -49,10 +56,40 @@ class CamServiceImpl final : public CamCalculationService::Service {
         double* out_points = nullptr;
         int out_count = 0;
         
-        const std::string& step_data = request->step_data();
+        std::string step_data;
+        const std::string& model_hash = request->model_hash();
+        
+        // 缓存逻辑
+        if (!model_hash.empty()) {
+            std::lock_guard<std::mutex> lock(cache_mutex_);
+            auto it = model_cache_.find(model_hash);
+            
+            if (it != model_cache_.end()) {
+                // 缓存命中
+                step_data = it->second;
+                std::cout << "[Cache HIT] hash=" << model_hash << std::endl;
+            } else {
+                // 缓存未命中，存储新数据
+                step_data = request->step_data();
+                if (!step_data.empty()) {
+                    model_cache_[model_hash] = step_data;
+                    std::cout << "[Cache MISS] hash=" << model_hash << " size=" << step_data.size() << "B" << std::endl;
+                } else {
+                    return Status(grpc::StatusCode::INVALID_ARGUMENT, "Model hash provided but no step_data");
+                }
+            }
+        } else {
+            // 无哈希，直接使用数据
+            step_data = request->step_data();
+        }
+        
+        if (step_data.empty()) {
+            return Status(grpc::StatusCode::INVALID_ARGUMENT, "No step data provided");
+        }
+        
         int mode = request->toolpath_mode();
         int num_paths = request->num_paths();
-        int start_direction = request->start_direction();  // 0=U向, 1=V向
+        int start_direction = request->start_direction();
         
         GenerateSurfaceToolpath(
             step_data.data(),
@@ -62,6 +99,7 @@ class CamServiceImpl final : public CamCalculationService::Service {
             mode,
             num_paths,
             start_direction,
+            request->face_index(),
             &out_points, &out_count
         );
         
@@ -80,9 +118,6 @@ class CamServiceImpl final : public CamCalculationService::Service {
         std::cout << "[SurfaceToolpath] mode=" << mode_name
                   << " dir=" << dir_name
                   << " num_paths=" << num_paths
-                  << " step_u=" << request->step_u()
-                  << " step_v=" << request->step_v()
-                  << " step_data=" << step_data.size() << "B"
                   << " | " << out_count << " pts, " << size << " bytes" << std::endl;
         
         return Status::OK;
