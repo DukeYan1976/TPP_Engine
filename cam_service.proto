@@ -29,4 +29,5 @@ message SurfaceCalculationRequest {
 message CalculationResponse {
   bytes raw_vertices = 1;
   int32 point_count = 2;
+  bytes raw_normals = 3;  // 法线数据 (Nx, Ny, Nz) * point_count
 }

@@ -221,6 +221,7 @@ class SurfaceCalculationRequest final : public ::google::protobuf::Message
   // accessors -------------------------------------------------------
   enum : int {
     kStepDataFieldNumber = 1,
+    kModelHashFieldNumber = 8,
     kStepUFieldNumber = 2,
     kStepVFieldNumber = 3,
     kToolpathModeFieldNumber = 4,
@@ -241,6 +242,21 @@ class SurfaceCalculationRequest final : public ::google::protobuf::Message
   const ::std::string& _internal_step_data() const;
   PROTOBUF_ALWAYS_INLINE void _internal_set_step_data(const ::std::string& value);
   ::std::string* PROTOBUF_NONNULL _internal_mutable_step_data();
+
+  public:
+  // string model_hash = 8;
+  void clear_model_hash() ;
+  const ::std::string& model_hash() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_model_hash(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_model_hash();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_model_hash();
+  void set_allocated_model_hash(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_model_hash() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_model_hash(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_model_hash();
 
   public:
   // double step_u = 2;
@@ -307,8 +323,8 @@ class SurfaceCalculationRequest final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<3, 7,
-                                   0, 0,
+  static const ::google::protobuf::internal::TcParseTable<3, 8,
+                                   0, 56,
                                    2>
       _table_;
 
@@ -330,6 +346,7 @@ class SurfaceCalculationRequest final : public ::google::protobuf::Message
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
     ::google::protobuf::internal::ArenaStringPtr step_data_;
+    ::google::protobuf::internal::ArenaStringPtr model_hash_;
     double step_u_;
     double step_v_;
     ::int32_t toolpath_mode_;
@@ -488,6 +505,7 @@ class CalculationResponse final : public ::google::protobuf::Message
   // accessors -------------------------------------------------------
   enum : int {
     kRawVerticesFieldNumber = 1,
+    kRawNormalsFieldNumber = 3,
     kPointCountFieldNumber = 2,
   };
   // bytes raw_vertices = 1;
@@ -505,6 +523,21 @@ class CalculationResponse final : public ::google::protobuf::Message
   ::std::string* PROTOBUF_NONNULL _internal_mutable_raw_vertices();
 
   public:
+  // bytes raw_normals = 3;
+  void clear_raw_normals() ;
+  const ::std::string& raw_normals() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_raw_normals(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_raw_normals();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_raw_normals();
+  void set_allocated_raw_normals(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_raw_normals() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_raw_normals(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_raw_normals();
+
+  public:
   // int32 point_count = 2;
   void clear_point_count() ;
   ::int32_t point_count() const;
@@ -519,7 +552,7 @@ class CalculationResponse final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<1, 2,
+  static const ::google::protobuf::internal::TcParseTable<2, 3,
                                    0, 0,
                                    2>
       _table_;
@@ -542,6 +575,7 @@ class CalculationResponse final : public ::google::protobuf::Message
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
     ::google::protobuf::internal::ArenaStringPtr raw_vertices_;
+    ::google::protobuf::internal::ArenaStringPtr raw_normals_;
     ::int32_t point_count_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
@@ -1004,7 +1038,7 @@ inline void SurfaceCalculationRequest::clear_step_u() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.step_u_ = 0;
   ClearHasBit(_impl_._has_bits_[0],
-                  0x00000002U);
+                  0x00000004U);
 }
 inline double SurfaceCalculationRequest::step_u() const {
   // @@protoc_insertion_point(field_get:cam.SurfaceCalculationRequest.step_u)
@@ -1012,7 +1046,7 @@ inline double SurfaceCalculationRequest::step_u() const {
 }
 inline void SurfaceCalculationRequest::set_step_u(double value) {
   _internal_set_step_u(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
   // @@protoc_insertion_point(field_set:cam.SurfaceCalculationRequest.step_u)
 }
 inline double SurfaceCalculationRequest::_internal_step_u() const {
@@ -1029,7 +1063,7 @@ inline void SurfaceCalculationRequest::clear_step_v() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.step_v_ = 0;
   ClearHasBit(_impl_._has_bits_[0],
-                  0x00000004U);
+                  0x00000008U);
 }
 inline double SurfaceCalculationRequest::step_v() const {
   // @@protoc_insertion_point(field_get:cam.SurfaceCalculationRequest.step_v)
@@ -1037,7 +1071,7 @@ inline double SurfaceCalculationRequest::step_v() const {
 }
 inline void SurfaceCalculationRequest::set_step_v(double value) {
   _internal_set_step_v(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
   // @@protoc_insertion_point(field_set:cam.SurfaceCalculationRequest.step_v)
 }
 inline double SurfaceCalculationRequest::_internal_step_v() const {
@@ -1054,7 +1088,7 @@ inline void SurfaceCalculationRequest::clear_toolpath_mode() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.toolpath_mode_ = 0;
   ClearHasBit(_impl_._has_bits_[0],
-                  0x00000008U);
+                  0x00000010U);
 }
 inline ::int32_t SurfaceCalculationRequest::toolpath_mode() const {
   // @@protoc_insertion_point(field_get:cam.SurfaceCalculationRequest.toolpath_mode)
@@ -1062,7 +1096,7 @@ inline ::int32_t SurfaceCalculationRequest::toolpath_mode() const {
 }
 inline void SurfaceCalculationRequest::set_toolpath_mode(::int32_t value) {
   _internal_set_toolpath_mode(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000010U);
   // @@protoc_insertion_point(field_set:cam.SurfaceCalculationRequest.toolpath_mode)
 }
 inline ::int32_t SurfaceCalculationRequest::_internal_toolpath_mode() const {
@@ -1079,7 +1113,7 @@ inline void SurfaceCalculationRequest::clear_num_paths() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.num_paths_ = 0;
   ClearHasBit(_impl_._has_bits_[0],
-                  0x00000010U);
+                  0x00000020U);
 }
 inline ::int32_t SurfaceCalculationRequest::num_paths() const {
   // @@protoc_insertion_point(field_get:cam.SurfaceCalculationRequest.num_paths)
@@ -1087,7 +1121,7 @@ inline ::int32_t SurfaceCalculationRequest::num_paths() const {
 }
 inline void SurfaceCalculationRequest::set_num_paths(::int32_t value) {
   _internal_set_num_paths(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000010U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000020U);
   // @@protoc_insertion_point(field_set:cam.SurfaceCalculationRequest.num_paths)
 }
 inline ::int32_t SurfaceCalculationRequest::_internal_num_paths() const {
@@ -1104,7 +1138,7 @@ inline void SurfaceCalculationRequest::clear_start_direction() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.start_direction_ = 0;
   ClearHasBit(_impl_._has_bits_[0],
-                  0x00000020U);
+                  0x00000040U);
 }
 inline ::int32_t SurfaceCalculationRequest::start_direction() const {
   // @@protoc_insertion_point(field_get:cam.SurfaceCalculationRequest.start_direction)
@@ -1112,7 +1146,7 @@ inline ::int32_t SurfaceCalculationRequest::start_direction() const {
 }
 inline void SurfaceCalculationRequest::set_start_direction(::int32_t value) {
   _internal_set_start_direction(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000020U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000040U);
   // @@protoc_insertion_point(field_set:cam.SurfaceCalculationRequest.start_direction)
 }
 inline ::int32_t SurfaceCalculationRequest::_internal_start_direction() const {
@@ -1129,7 +1163,7 @@ inline void SurfaceCalculationRequest::clear_face_index() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.face_index_ = 0;
   ClearHasBit(_impl_._has_bits_[0],
-                  0x00000040U);
+                  0x00000080U);
 }
 inline ::int32_t SurfaceCalculationRequest::face_index() const {
   // @@protoc_insertion_point(field_get:cam.SurfaceCalculationRequest.face_index)
@@ -1137,7 +1171,7 @@ inline ::int32_t SurfaceCalculationRequest::face_index() const {
 }
 inline void SurfaceCalculationRequest::set_face_index(::int32_t value) {
   _internal_set_face_index(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000040U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000080U);
   // @@protoc_insertion_point(field_set:cam.SurfaceCalculationRequest.face_index)
 }
 inline ::int32_t SurfaceCalculationRequest::_internal_face_index() const {
@@ -1147,6 +1181,71 @@ inline ::int32_t SurfaceCalculationRequest::_internal_face_index() const {
 inline void SurfaceCalculationRequest::_internal_set_face_index(::int32_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.face_index_ = value;
+}
+
+// string model_hash = 8;
+inline void SurfaceCalculationRequest::clear_model_hash() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.model_hash_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0],
+                  0x00000002U);
+}
+inline const ::std::string& SurfaceCalculationRequest::model_hash() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:cam.SurfaceCalculationRequest.model_hash)
+  return _internal_model_hash();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void SurfaceCalculationRequest::set_model_hash(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  _impl_.model_hash_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:cam.SurfaceCalculationRequest.model_hash)
+}
+inline ::std::string* PROTOBUF_NONNULL SurfaceCalculationRequest::mutable_model_hash()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ::std::string* _s = _internal_mutable_model_hash();
+  // @@protoc_insertion_point(field_mutable:cam.SurfaceCalculationRequest.model_hash)
+  return _s;
+}
+inline const ::std::string& SurfaceCalculationRequest::_internal_model_hash() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.model_hash_.Get();
+}
+inline void SurfaceCalculationRequest::_internal_set_model_hash(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.model_hash_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL SurfaceCalculationRequest::_internal_mutable_model_hash() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.model_hash_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE SurfaceCalculationRequest::release_model_hash() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:cam.SurfaceCalculationRequest.model_hash)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  auto* released = _impl_.model_hash_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.model_hash_.Set("", GetArena());
+  }
+  return released;
+}
+inline void SurfaceCalculationRequest::set_allocated_model_hash(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  }
+  _impl_.model_hash_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.model_hash_.IsDefault()) {
+    _impl_.model_hash_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:cam.SurfaceCalculationRequest.model_hash)
 }
 
 // -------------------------------------------------------------------
@@ -1223,7 +1322,7 @@ inline void CalculationResponse::clear_point_count() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.point_count_ = 0;
   ClearHasBit(_impl_._has_bits_[0],
-                  0x00000002U);
+                  0x00000004U);
 }
 inline ::int32_t CalculationResponse::point_count() const {
   // @@protoc_insertion_point(field_get:cam.CalculationResponse.point_count)
@@ -1231,7 +1330,7 @@ inline ::int32_t CalculationResponse::point_count() const {
 }
 inline void CalculationResponse::set_point_count(::int32_t value) {
   _internal_set_point_count(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
   // @@protoc_insertion_point(field_set:cam.CalculationResponse.point_count)
 }
 inline ::int32_t CalculationResponse::_internal_point_count() const {
@@ -1241,6 +1340,71 @@ inline ::int32_t CalculationResponse::_internal_point_count() const {
 inline void CalculationResponse::_internal_set_point_count(::int32_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.point_count_ = value;
+}
+
+// bytes raw_normals = 3;
+inline void CalculationResponse::clear_raw_normals() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.raw_normals_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0],
+                  0x00000002U);
+}
+inline const ::std::string& CalculationResponse::raw_normals() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:cam.CalculationResponse.raw_normals)
+  return _internal_raw_normals();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void CalculationResponse::set_raw_normals(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  _impl_.raw_normals_.SetBytes(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:cam.CalculationResponse.raw_normals)
+}
+inline ::std::string* PROTOBUF_NONNULL CalculationResponse::mutable_raw_normals()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ::std::string* _s = _internal_mutable_raw_normals();
+  // @@protoc_insertion_point(field_mutable:cam.CalculationResponse.raw_normals)
+  return _s;
+}
+inline const ::std::string& CalculationResponse::_internal_raw_normals() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.raw_normals_.Get();
+}
+inline void CalculationResponse::_internal_set_raw_normals(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.raw_normals_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL CalculationResponse::_internal_mutable_raw_normals() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.raw_normals_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE CalculationResponse::release_raw_normals() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:cam.CalculationResponse.raw_normals)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  auto* released = _impl_.raw_normals_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.raw_normals_.Set("", GetArena());
+  }
+  return released;
+}
+inline void CalculationResponse::set_allocated_raw_normals(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  }
+  _impl_.raw_normals_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.raw_normals_.IsDefault()) {
+    _impl_.raw_normals_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:cam.CalculationResponse.raw_normals)
 }
 
 #ifdef __GNUC__

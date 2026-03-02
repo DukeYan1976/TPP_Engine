@@ -68,6 +68,9 @@ inline constexpr CalculationResponse::Impl_::Impl_(
         raw_vertices_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
+        raw_normals_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
         point_count_{0} {}
 
 template <typename>
@@ -160,10 +163,12 @@ const ::uint32_t
         1,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::cam::CalculationResponse, _impl_._has_bits_),
-        5, // hasbit index offset
+        6, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::cam::CalculationResponse, _impl_.raw_vertices_),
         PROTOBUF_FIELD_OFFSET(::cam::CalculationResponse, _impl_.point_count_),
+        PROTOBUF_FIELD_OFFSET(::cam::CalculationResponse, _impl_.raw_normals_),
         0,
+        2,
         1,
 };
 
@@ -187,20 +192,20 @@ const char descriptor_table_protodef_cam_5fservice_2eproto[] ABSL_ATTRIBUTE_SECT
     "data\030\001 \001(\014\022\016\n\006step_u\030\002 \001(\001\022\016\n\006step_v\030\003 \001"
     "(\001\022\025\n\rtoolpath_mode\030\004 \001(\005\022\021\n\tnum_paths\030\005"
     " \001(\005\022\027\n\017start_direction\030\006 \001(\005\022\022\n\nface_in"
-    "dex\030\007 \001(\005\022\022\n\nmodel_hash\030\010 \001(\t\"@\n\023Calcula"
+    "dex\030\007 \001(\005\022\022\n\nmodel_hash\030\010 \001(\t\"U\n\023Calcula"
     "tionResponse\022\024\n\014raw_vertices\030\001 \001(\014\022\023\n\013po"
-    "int_count\030\002 \001(\0052\265\001\n\025CamCalculationServic"
-    "e\022F\n\021CalculateToolpath\022\027.cam.Calculation"
-    "Request\032\030.cam.CalculationResponse\022T\n\030Cal"
-    "culateSurfaceToolpath\022\036.cam.SurfaceCalcu"
-    "lationRequest\032\030.cam.CalculationResponseb"
-    "\006proto3"
+    "int_count\030\002 \001(\005\022\023\n\013raw_normals\030\003 \001(\0142\265\001\n"
+    "\025CamCalculationService\022F\n\021CalculateToolp"
+    "ath\022\027.cam.CalculationRequest\032\030.cam.Calcu"
+    "lationResponse\022T\n\030CalculateSurfaceToolpa"
+    "th\022\036.cam.SurfaceCalculationRequest\032\030.cam"
+    ".CalculationResponseb\006proto3"
 };
 static ::absl::once_flag descriptor_table_cam_5fservice_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_cam_5fservice_2eproto = {
     false,
     false,
-    567,
+    588,
     descriptor_table_protodef_cam_5fservice_2eproto,
     "cam_service.proto",
     &descriptor_table_cam_5fservice_2eproto_once,
@@ -1112,7 +1117,8 @@ PROTOBUF_NDEBUG_INLINE CalculationResponse::Impl_::Impl_(
     [[maybe_unused]] const ::cam::CalculationResponse& from_msg)
       : _has_bits_{from._has_bits_},
         _cached_size_{0},
-        raw_vertices_(arena, from.raw_vertices_) {}
+        raw_vertices_(arena, from.raw_vertices_),
+        raw_normals_(arena, from.raw_normals_) {}
 
 CalculationResponse::CalculationResponse(
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
@@ -1135,7 +1141,8 @@ PROTOBUF_NDEBUG_INLINE CalculationResponse::Impl_::Impl_(
     [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
     [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
       : _cached_size_{0},
-        raw_vertices_(arena) {}
+        raw_vertices_(arena),
+        raw_normals_(arena) {}
 
 inline void CalculationResponse::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
@@ -1153,6 +1160,7 @@ inline void CalculationResponse::SharedDtor(MessageLite& self) {
   this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
   ABSL_DCHECK(this_.GetArena() == nullptr);
   this_._impl_.raw_vertices_.Destroy();
+  this_._impl_.raw_normals_.Destroy();
   this_._impl_.~Impl_();
 }
 
@@ -1199,16 +1207,16 @@ CalculationResponse::GetClassData() const {
   return CalculationResponse_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<1, 2, 0, 0, 2>
+const ::_pbi::TcParseTable<2, 3, 0, 0, 2>
 CalculationResponse::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_._has_bits_),
     0, // no _extensions_
-    2, 8,  // max_field_number, fast_idx_mask
+    3, 24,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967292,  // skipmap
+    4294967288,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    2,  // num_field_entries
+    3,  // num_field_entries
     0,  // num_aux_entries
     offsetof(decltype(_table_), field_names),  // no aux_entries
     CalculationResponse_class_data_.base(),
@@ -1218,21 +1226,28 @@ CalculationResponse::_table_ = {
     ::_pbi::TcParser::GetTable<::cam::CalculationResponse>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
-    // int32 point_count = 2;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(CalculationResponse, _impl_.point_count_), 1>(),
-     {16, 1, 0,
-      PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.point_count_)}},
+    {::_pbi::TcParser::MiniParse, {}},
     // bytes raw_vertices = 1;
     {::_pbi::TcParser::FastBS1,
      {10, 0, 0,
       PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.raw_vertices_)}},
+    // int32 point_count = 2;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(CalculationResponse, _impl_.point_count_), 2>(),
+     {16, 2, 0,
+      PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.point_count_)}},
+    // bytes raw_normals = 3;
+    {::_pbi::TcParser::FastBS1,
+     {26, 1, 0,
+      PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.raw_normals_)}},
   }}, {{
     65535, 65535
   }}, {{
     // bytes raw_vertices = 1;
     {PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.raw_vertices_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kBytes | ::_fl::kRepAString)},
     // int32 point_count = 2;
-    {PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.point_count_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    {PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.point_count_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    // bytes raw_normals = 3;
+    {PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.raw_normals_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kBytes | ::_fl::kRepAString)},
   }},
   // no aux_entries
   {{
@@ -1246,8 +1261,13 @@ PROTOBUF_NOINLINE void CalculationResponse::Clear() {
   (void) cached_has_bits;
 
   cached_has_bits = _impl_._has_bits_[0];
-  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
-    _impl_.raw_vertices_.ClearNonDefaultToEmpty();
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.raw_vertices_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.raw_normals_.ClearNonDefaultToEmpty();
+    }
   }
   _impl_.point_count_ = 0;
   _impl_._has_bits_.Clear();
@@ -1282,11 +1302,19 @@ PROTOBUF_NOINLINE void CalculationResponse::Clear() {
   }
 
   // int32 point_count = 2;
-  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
     if (this_._internal_point_count() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<2>(
               stream, this_._internal_point_count(), target);
+    }
+  }
+
+  // bytes raw_normals = 3;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_raw_normals().empty()) {
+      const ::std::string& _s = this_._internal_raw_normals();
+      target = stream->WriteBytesMaybeAliased(3, _s, target);
     }
   }
 
@@ -1315,7 +1343,7 @@ PROTOBUF_NOINLINE void CalculationResponse::Clear() {
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x00000007U)) {
     // bytes raw_vertices = 1;
     if (CheckHasBit(cached_has_bits, 0x00000001U)) {
       if (!this_._internal_raw_vertices().empty()) {
@@ -1323,8 +1351,15 @@ PROTOBUF_NOINLINE void CalculationResponse::Clear() {
                                         this_._internal_raw_vertices());
       }
     }
-    // int32 point_count = 2;
+    // bytes raw_normals = 3;
     if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!this_._internal_raw_normals().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::BytesSize(
+                                        this_._internal_raw_normals());
+      }
+    }
+    // int32 point_count = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       if (this_._internal_point_count() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_point_count());
@@ -1349,7 +1384,7 @@ void CalculationResponse::MergeImpl(::google::protobuf::MessageLite& to_msg,
   (void)cached_has_bits;
 
   cached_has_bits = from._impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x00000007U)) {
     if (CheckHasBit(cached_has_bits, 0x00000001U)) {
       if (!from._internal_raw_vertices().empty()) {
         _this->_internal_set_raw_vertices(from._internal_raw_vertices());
@@ -1360,6 +1395,15 @@ void CalculationResponse::MergeImpl(::google::protobuf::MessageLite& to_msg,
       }
     }
     if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!from._internal_raw_normals().empty()) {
+        _this->_internal_set_raw_normals(from._internal_raw_normals());
+      } else {
+        if (_this->_impl_.raw_normals_.IsDefault()) {
+          _this->_internal_set_raw_normals("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       if (from._internal_point_count() != 0) {
         _this->_impl_.point_count_ = from._impl_.point_count_;
       }
@@ -1385,6 +1429,7 @@ void CalculationResponse::InternalSwap(CalculationResponse* PROTOBUF_RESTRICT PR
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.raw_vertices_, &other->_impl_.raw_vertices_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.raw_normals_, &other->_impl_.raw_normals_, arena);
   swap(_impl_.point_count_, other->_impl_.point_count_);
 }
 

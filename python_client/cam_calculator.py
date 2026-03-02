@@ -56,7 +56,7 @@ class CamCalculator:
             face_index: 面索引 (0-based, -1表示自动选择最大面)
             
         Returns:
-            numpy array of shape (N, 3) - 刀轨点坐标
+            tuple: (points, normals) - 刀轨点坐标和法线，均为 numpy array of shape (N, 3)
         """
         if not self.stub:
             raise RuntimeError("Not connected to server. Call connect() first.")
@@ -89,7 +89,15 @@ class CamCalculator:
             response = self.stub.CalculateSurfaceToolpath(request, timeout=10.0)
             vertices = np.frombuffer(response.raw_vertices, dtype=np.float64)
             points = vertices.reshape((response.point_count, 3))
-            return points
+            
+            if response.raw_normals:
+                normals = np.frombuffer(response.raw_normals, dtype=np.float64)
+                normals_array = normals.reshape((response.point_count, 3))
+            else:
+                # 如果没有法线数据，返回零向量
+                normals_array = np.zeros((response.point_count, 3))
+            
+            return points, normals_array
         except grpc.RpcError as e:
             raise RuntimeError(f"gRPC Error: {e.code()} - {e.details()}")
     

@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QFileDialog,
                              QRadioButton, QButtonGroup, QSlider, QMessageBox,
                              QGroupBox, QProgressBar)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QDateTime
 
 from OCC.Display.backend import load_backend
 load_backend('pyqt5')
@@ -15,16 +15,18 @@ from OCC.Display.qtDisplay import qtViewer3d
 from OCC.Core.STEPControl import STEPControl_Reader
 from OCC.Core.IFSelect import IFSelect_RetDone
 from OCC.Core.TopExp import TopExp_Explorer
-from OCC.Core.TopAbs import TopAbs_FACE
-from OCC.Core.TopoDS import topods
+from OCC.Core.TopAbs import TopAbs_FACE, TopAbs_VERTEX
+from OCC.Core.TopoDS import topods, TopoDS_Compound
+from OCC.Core.BRep import BRep_Builder, BRep_Tool
 from OCC.Core.BRepGProp import brepgprop
 from OCC.Core.GProp import GProp_GProps
 from OCC.Core.BRepTools import breptools
 from OCC.Core.Quantity import Quantity_Color, Quantity_TOC_RGB
-from OCC.Core.AIS import AIS_Shape
+from OCC.Core.AIS import AIS_Shape, AIS_Trihedron
 from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_MakeWire
-from OCC.Core.gp import gp_Pnt
-from OCC.Core.Prs3d import Prs3d_LineAspect
+from OCC.Core.gp import gp_Pnt, gp_Ax2, gp_Dir, gp_Trsf
+from OCC.Core.Geom import Geom_Axis2Placement
+from OCC.Core.Prs3d import Prs3d_LineAspect, Prs3d_Drawer
 from OCC.Core.Aspect import Aspect_TOL_SOLID
 from OCC.Core.V3d import V3d_DirectionalLight, V3d_AmbientLight, V3d_TypeOfLight
 from OCC.Core.Graphic3d import Graphic3d_MaterialAspect, Graphic3d_NameOfMaterial
@@ -32,10 +34,9 @@ from OCC.Core.Graphic3d import Graphic3d_MaterialAspect, Graphic3d_NameOfMateria
 from cam_calculator import CamCalculator
 import numpy as np
 
-
 class ToolpathWorker(QThread):
     """后台线程执行刀轨计算"""
-    finished = pyqtSignal(np.ndarray)
+    finished = pyqtSignal(np.ndarray, np.ndarray)  # (points, normals)
     error = pyqtSignal(str)
     
     def __init__(self, calculator, step_data, params, face_index):
@@ -47,7 +48,7 @@ class ToolpathWorker(QThread):
     
     def run(self):
         try:
-            points = self.calculator.calculate_toolpath(
+            points, normals = self.calculator.calculate_toolpath(
                 self.step_data,
                 self.params['toolpath_mode'],
                 self.params['num_paths'],
@@ -56,7 +57,7 @@ class ToolpathWorker(QThread):
                 self.params['start_direction'],
                 self.face_index
             )
-            self.finished.emit(points)
+            self.finished.emit(points, normals)
         except Exception as e:
             self.error.emit(str(e))
 
@@ -76,10 +77,22 @@ class CamGuiClient(QMainWindow):
         self.selected_face_index = -1  # 记录选中面的索引
         self.selected_face_ais = None
         self.toolpath_points = None
+        self.toolpath_normals = None  # 刀轨法线
         self.toolpath_ais = None  # 保存刀轨AIS对象用于删除
+        self.normals_ais = None  # 法线可视化对象
+        self.show_normals = False  # 是否显示法线
         self.calculator = CamCalculator()
         self.worker = None  # 后台计算线程
         self._callback_registered = False  # 回调是否已注册
+        
+        # 工件坐标系
+        self.wcs_mode = 0  # 0=世界坐标系, 1=自定义
+        self.wcs_transform = np.eye(4)  # 4x4变换矩阵
+        self.wcs_ais = None  # 自定义坐标系可视化
+        self.world_cs_ais = None  # 世界坐标系可视化（固定参考）
+        self.wcs_picking_step = 0  # 三点拾取步骤 (0=未开始, 1-3=拾取中)
+        self.wcs_points = []  # 拾取的三个点
+        self.wcs_adjusting = False  # 是否处于调整模式
         
         # 连接服务器
         try:
@@ -102,14 +115,19 @@ class CamGuiClient(QMainWindow):
         # 右侧：控制面板
         control_panel = QWidget()
         control_layout = QVBoxLayout(control_panel)
-        control_panel.setMaximumWidth(300)
+        control_layout.setSpacing(8)  # 减小间距
+        control_layout.setContentsMargins(5, 5, 5, 5)  # 减小边距
+        control_panel.setMaximumWidth(280)  # 减小宽度
         
         # 文件选择
         file_group = QGroupBox("STEP文件")
         file_layout = QVBoxLayout()
+        file_layout.setSpacing(4)
         self.file_label = QLabel("未选择文件")
         self.file_label.setWordWrap(True)
-        btn_load = QPushButton("选择STEP文件")
+        self.file_label.setStyleSheet("QLabel { font-size: 10px; }")
+        btn_load = QPushButton("选择文件")
+        btn_load.setMaximumHeight(28)
         btn_load.clicked.connect(self.load_step_file)
         file_layout.addWidget(self.file_label)
         file_layout.addWidget(btn_load)
@@ -119,8 +137,10 @@ class CamGuiClient(QMainWindow):
         # 面选择提示
         face_group = QGroupBox("面选择")
         face_layout = QVBoxLayout()
-        self.face_label = QLabel("请在3D视图中点击选择一个面")
+        face_layout.setSpacing(4)
+        self.face_label = QLabel("点击3D视图选择面")
         self.face_label.setWordWrap(True)
+        self.face_label.setStyleSheet("QLabel { font-size: 10px; }")
         face_layout.addWidget(self.face_label)
         face_group.setLayout(face_layout)
         control_layout.addWidget(face_group)
@@ -128,97 +148,123 @@ class CamGuiClient(QMainWindow):
         # 刀轨参数
         param_group = QGroupBox("刀轨参数")
         param_layout = QVBoxLayout()
+        param_layout.setSpacing(4)
         
-        # 刀路模式
-        mode_label = QLabel("刀路模式:")
+        # 刀路模式（水平布局）
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel("模式:"))
         self.mode_group = QButtonGroup()
         self.radio_raster = QRadioButton("行切")
         self.radio_contour = QRadioButton("环切")
         self.radio_raster.setChecked(True)
         self.mode_group.addButton(self.radio_raster, 0)
         self.mode_group.addButton(self.radio_contour, 1)
+        mode_layout.addWidget(self.radio_raster)
+        mode_layout.addWidget(self.radio_contour)
+        mode_layout.addStretch()
+        param_layout.addLayout(mode_layout)
         
-        # 起始方向
-        dir_label = QLabel("起始方向:")
+        # 起始方向（水平布局）
+        dir_layout = QHBoxLayout()
+        dir_layout.addWidget(QLabel("方向:"))
         self.dir_group = QButtonGroup()
         self.radio_u = QRadioButton("U向")
         self.radio_v = QRadioButton("V向")
         self.radio_v.setChecked(True)
         self.dir_group.addButton(self.radio_u, 0)
         self.dir_group.addButton(self.radio_v, 1)
+        dir_layout.addWidget(self.radio_u)
+        dir_layout.addWidget(self.radio_v)
+        dir_layout.addStretch()
+        param_layout.addLayout(dir_layout)
         
         # 刀路数
         paths_label = QLabel("刀路数: 10")
+        paths_label.setStyleSheet("QLabel { font-size: 10px; }")
         self.paths_slider = QSlider(Qt.Horizontal)
         self.paths_slider.setMinimum(3)
         self.paths_slider.setMaximum(20)
         self.paths_slider.setValue(10)
-        self.paths_slider.setTickPosition(QSlider.TicksBelow)
-        self.paths_slider.setTickInterval(1)
+        self.paths_slider.setMaximumHeight(20)
         self.paths_slider.valueChanged.connect(
             lambda v: paths_label.setText(f"刀路数: {v}")
         )
-        
-        param_layout.addWidget(mode_label)
-        param_layout.addWidget(self.radio_raster)
-        param_layout.addWidget(self.radio_contour)
-        param_layout.addWidget(dir_label)
-        param_layout.addWidget(self.radio_u)
-        param_layout.addWidget(self.radio_v)
         param_layout.addWidget(paths_label)
         param_layout.addWidget(self.paths_slider)
         param_group.setLayout(param_layout)
         control_layout.addWidget(param_group)
         
-        # 执行按钮
-        self.btn_calculate = QPushButton("计算刀路")
+        # 执行和输出按钮（水平布局）
+        btn_layout = QHBoxLayout()
+        self.btn_calculate = QPushButton("计算")
         self.btn_calculate.setEnabled(False)
+        self.btn_calculate.setMaximumHeight(32)
         self.btn_calculate.clicked.connect(self.calculate_toolpath)
-        control_layout.addWidget(self.btn_calculate)
+        self.btn_export = QPushButton("输出")
+        self.btn_export.setEnabled(False)
+        self.btn_export.setMaximumHeight(32)
+        self.btn_export.clicked.connect(self.export_toolpath)
+        btn_layout.addWidget(self.btn_calculate)
+        btn_layout.addWidget(self.btn_export)
+        control_layout.addLayout(btn_layout)
+        
+        # 工件坐标系（简化，隐藏开发中功能）
+        wcs_layout = QHBoxLayout()
+        wcs_layout.addWidget(QLabel("坐标系:"))
+        self.wcs_radio_world = QRadioButton("世界")
+        self.wcs_radio_world.setChecked(True)
+        self.wcs_radio_world.setEnabled(True)
+        wcs_layout.addWidget(self.wcs_radio_world)
+        wcs_layout.addStretch()
+        control_layout.addLayout(wcs_layout)
         
         # 进度条
         self.progress = QProgressBar()
         self.progress.setVisible(False)
+        self.progress.setMaximumHeight(15)
         control_layout.addWidget(self.progress)
         
-        # 状态信息
+        # 状态信息（紧凑）
         self.status_label = QLabel("就绪")
         self.status_label.setWordWrap(True)
-        self.status_label.setStyleSheet("QLabel { padding: 5px; }")
+        self.status_label.setStyleSheet("QLabel { font-size: 10px; padding: 3px; }")
         control_layout.addWidget(self.status_label)
         
         # 刀位点计数
         self.point_count_label = QLabel("")
         self.point_count_label.setWordWrap(True)
-        self.point_count_label.setStyleSheet("QLabel { color: green; font-weight: bold; padding: 5px; }")
+        self.point_count_label.setStyleSheet("QLabel { color: green; font-size: 10px; font-weight: bold; padding: 2px; }")
         control_layout.addWidget(self.point_count_label)
         
         control_layout.addStretch()
         
-        # 分隔线
-        from PyQt5.QtWidgets import QFrame
-        separator = QFrame()
-        separator.setFrameShape(QFrame.HLine)
-        separator.setFrameShadow(QFrame.Sunken)
-        control_layout.addWidget(separator)
-        
-        # 显示模式控制（底部）
-        view_group = QGroupBox("显示模式")
+        # 显示模式控制（底部，紧凑）
+        view_group = QGroupBox("显示")
         view_layout = QVBoxLayout()
+        view_layout.setSpacing(4)
         
+        # 显示模式（水平布局）
+        display_layout = QHBoxLayout()
         self.display_mode_group = QButtonGroup()
         self.radio_shaded = QRadioButton("着色")
         self.radio_wireframe = QRadioButton("线框")
         self.radio_shaded.setChecked(True)
-        
         self.display_mode_group.addButton(self.radio_shaded, 0)
         self.display_mode_group.addButton(self.radio_wireframe, 1)
-        
         self.radio_shaded.toggled.connect(lambda checked: self.set_shaded_mode() if checked else None)
         self.radio_wireframe.toggled.connect(lambda checked: self.set_wireframe_mode() if checked else None)
+        display_layout.addWidget(self.radio_shaded)
+        display_layout.addWidget(self.radio_wireframe)
+        display_layout.addStretch()
+        view_layout.addLayout(display_layout)
         
-        view_layout.addWidget(self.radio_shaded)
-        view_layout.addWidget(self.radio_wireframe)
+        # 法线显示开关
+        from PyQt5.QtWidgets import QCheckBox
+        self.checkbox_show_normals = QCheckBox("显示法线")
+        self.checkbox_show_normals.setChecked(False)
+        self.checkbox_show_normals.toggled.connect(self.toggle_normals_display)
+        view_layout.addWidget(self.checkbox_show_normals)
+        
         view_group.setLayout(view_layout)
         control_layout.addWidget(view_group)
         main_layout.addWidget(control_panel, stretch=1)
@@ -272,6 +318,7 @@ class CamGuiClient(QMainWindow):
         # 清除AIS对象（EraseAll之前先置空引用，避免对已移除对象操作）
         self.selected_face_ais = None
         self.toolpath_ais = None
+        self.world_cs_ais = None  # 重置世界坐标系，加载新模型时重新创建
         
         # 清除模型数据
         self.shape = None
@@ -348,6 +395,7 @@ class CamGuiClient(QMainWindow):
                 ais_shape = AIS_Shape(self.shape)
                 ais_shape.SetColor(Quantity_Color(0.75, 0.75, 0.8, Quantity_TOC_RGB))
                 ais_shape.SetMaterial(self.setup_material())
+                ais_shape.SetTransparency(0.2)  # 80%不透明度（0.2透明度）
                 self.viewer._display.Context.Display(ais_shape, True)
                 self.status_label.setText(f"已加载 {len(self.faces)} 个面（整体显示，几何匹配选择）")
             else:
@@ -357,12 +405,16 @@ class CamGuiClient(QMainWindow):
                     ais_face = AIS_Shape(face)
                     ais_face.SetColor(Quantity_Color(0.75, 0.75, 0.8, Quantity_TOC_RGB))
                     ais_face.SetMaterial(material)
+                    ais_face.SetTransparency(0.2)  # 80%不透明度（0.2透明度）
                     self.viewer._display.Context.Display(ais_face, False)
                 
                 self.viewer._display.Repaint()
                 self.status_label.setText(f"已加载 {len(self.faces)} 个面，请点击选择一个面")
             
             self.viewer._display.FitAll()
+            
+            # 显示世界坐标系参考
+            self.display_world_coordinate_system()
             
             # 重新激活面选择模式（必须在DisplayShape之后，否则新对象不会被激活）
             self.viewer._display.SetSelectionModeFace()
@@ -382,6 +434,38 @@ class CamGuiClient(QMainWindow):
     
     def on_face_selected(self, shapes, x, y):
         """面选择回调"""
+        # 如果正在拾取工件坐标系点，使用点击位置
+        if self.wcs_picking_step > 0:
+            # 获取3D点坐标（使用视图投影）
+            view = self.viewer._display.View
+            from OCC.Core.gp import gp_Pnt
+            point_3d = gp_Pnt()
+            # 简化：使用shapes中心点或直接使用x,y投影
+            if shapes:
+                # 尝试从选中的形状获取点
+                selected_shape = shapes[0]
+                if selected_shape.ShapeType() == TopAbs_VERTEX:
+                    vertex = topods.Vertex(selected_shape)
+                    point_3d = BRep_Tool.Pnt(vertex)
+                elif selected_shape.ShapeType() == TopAbs_FACE:
+                    # 使用面的中心点
+                    face = topods.Face(selected_shape)
+                    props = GProp_GProps()
+                    brepgprop.SurfaceProperties(face, props)
+                    point_3d = props.CentreOfMass()
+                else:
+                    # 使用包围盒中心
+                    from OCC.Core.Bnd import Bnd_Box
+                    from OCC.Core.BRepBndLib import brepbndlib
+                    bbox = Bnd_Box()
+                    brepbndlib.Add(selected_shape, bbox)
+                    xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
+                    point_3d = gp_Pnt((xmin+xmax)/2, (ymin+ymax)/2, (zmin+zmax)/2)
+                
+                self.on_wcs_point_picked(point_3d.X(), point_3d.Y(), point_3d.Z())
+                return
+        
+        # 正常的面选择逻辑
         if not shapes or not self.faces:
             return
         
@@ -484,7 +568,11 @@ class CamGuiClient(QMainWindow):
         if self.toolpath_ais:
             self.viewer._display.Context.Remove(self.toolpath_ais, True)
             self.toolpath_ais = None
+        if self.normals_ais:
+            self.viewer._display.Context.Remove(self.normals_ais, True)
+            self.normals_ais = None
         self.toolpath_points = None
+        self.toolpath_normals = None
         self.point_count_label.setText("")  # 清除点数显示
         
         # 使用缓存的文件数据
@@ -531,15 +619,21 @@ class CamGuiClient(QMainWindow):
         self.worker.error.connect(self.on_toolpath_error)
         self.worker.start()
     
-    def on_toolpath_calculated(self, points):
+    def on_toolpath_calculated(self, points, normals):
         """刀路计算完成"""
         self.toolpath_points = points
+        self.toolpath_normals = normals
         
         # 显示刀轨
         self.display_toolpath(points)
         
+        # 如果法线显示开关打开，显示法线
+        if self.show_normals:
+            self.display_normals()
+        
         # 恢复UI
         self.btn_calculate.setEnabled(True)
+        self.btn_export.setEnabled(True)  # 启用输出按钮
         self.progress.setVisible(False)
         
         # 计算统计信息
@@ -595,6 +689,353 @@ class CamGuiClient(QMainWindow):
         self.toolpath_ais.SetAttributes(drawer)
         
         self.viewer._display.Context.Display(self.toolpath_ais, True)
+    
+    def on_wcs_mode_changed(self):
+        """工件坐标系模式切换（简化版）"""
+        # 当前只支持世界坐标系
+        self.wcs_mode = 0
+        self.wcs_transform = np.eye(4)
+    
+    def start_wcs_picking(self):
+        """开始三点拾取定义工件坐标系（禁用）"""
+        pass
+    
+    def start_wcs_adjustment(self):
+        """开始调整工件坐标系（禁用）"""
+        pass
+    
+    def on_wcs_point_picked(self, x, y, z):
+        """工件坐标系点拾取回调（禁用）"""
+        pass
+        
+        current_point = np.array([x, y, z])
+        
+        # 检查是否与已有点重合
+        for i, existing_point in enumerate(self.wcs_points):
+            dist = np.linalg.norm(current_point - existing_point)
+            if dist < 1e-3:  # 距离小于0.001mm视为重合
+                QMessageBox.warning(
+                    self, "错误", 
+                    f"拾取的点与第{i+1}个点距离太近（{dist:.6f}mm），请选择不同的点"
+                )
+                return
+        
+        self.wcs_points.append(current_point)
+        
+        mode_prefix = "调整模式" if self.wcs_adjusting else "工件坐标系设置"
+        
+        if self.wcs_picking_step == 1:
+            self.wcs_status_label.setText("请点击X轴正方向")
+            self.status_label.setText(f"{mode_prefix}:\n步骤2/3 - 点击X轴方向")
+            self.wcs_picking_step = 2
+        elif self.wcs_picking_step == 2:
+            self.wcs_status_label.setText("请点击XY平面上一点")
+            self.status_label.setText(f"{mode_prefix}:\n步骤3/3 - 点击XY平面")
+            self.wcs_picking_step = 3
+        elif self.wcs_picking_step == 3:
+            # 计算坐标系
+            self.compute_wcs_transform()
+            if self.wcs_picking_step == 0:  # compute失败会重置step
+                return
+            self.wcs_adjusting = False
+            self.wcs_status_label.setText("状态: 已设置")
+            self.status_label.setText("✓ 工件坐标系设置完成")
+            self.btn_adjust_wcs.setEnabled(True)
+            self.display_custom_wcs()
+            self.update_wcs_info()
+    
+    def compute_wcs_transform(self):
+        """根据三点计算工件坐标系变换矩阵"""
+        origin = self.wcs_points[0]
+        x_point = self.wcs_points[1]
+        xy_point = self.wcs_points[2]
+        
+        # X轴方向
+        x_vec = x_point - origin
+        x_len = np.linalg.norm(x_vec)
+        if x_len < 1e-6:
+            QMessageBox.warning(self, "错误", "原点和X轴点距离太近，请重新选择")
+            self.wcs_picking_step = 0
+            self.wcs_adjusting = False
+            return
+        x_vec = x_vec / x_len
+        
+        # 临时Y方向
+        temp_y = xy_point - origin
+        temp_y_len = np.linalg.norm(temp_y)
+        if temp_y_len < 1e-6:
+            QMessageBox.warning(self, "错误", "原点和XY平面点距离太近，请重新选择")
+            self.wcs_picking_step = 0
+            self.wcs_adjusting = False
+            return
+        
+        # Z轴 = X × temp_Y
+        z_vec = np.cross(x_vec, temp_y)
+        z_len = np.linalg.norm(z_vec)
+        if z_len < 1e-6:
+            QMessageBox.warning(self, "错误", "三点共线，无法定义坐标系，请重新选择")
+            self.wcs_picking_step = 0
+            self.wcs_adjusting = False
+            return
+        z_vec = z_vec / z_len
+        
+        # Y轴 = Z × X (确保正交)
+        y_vec = np.cross(z_vec, x_vec)
+        
+        # 构建变换矩阵 (世界坐标系 -> 工件坐标系)
+        R = np.column_stack([x_vec, y_vec, z_vec])
+        self.wcs_transform = np.eye(4)
+        self.wcs_transform[:3, :3] = R.T
+        self.wcs_transform[:3, 3] = -R.T @ origin
+    
+    def display_world_coordinate_system(self):
+        """显示世界坐标系（固定参考）"""
+        if self.world_cs_ais:
+            return  # 已显示
+        
+        # 计算轴长度（模型包围盒的15%，如果没有模型则使用默认值）
+        axis_length = 50.0
+        if self.shape:
+            from OCC.Core.Bnd import Bnd_Box
+            from OCC.Core.BRepBndLib import brepbndlib
+            bbox = Bnd_Box()
+            brepbndlib.Add(self.shape, bbox)
+            xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
+            diagonal = ((xmax-xmin)**2 + (ymax-ymin)**2 + (zmax-zmin)**2) ** 0.5
+            axis_length = diagonal * 0.15
+        
+        # 创建世界坐标系 (原点在0,0,0)
+        origin = gp_Pnt(0, 0, 0)
+        z_dir = gp_Dir(0, 0, 1)
+        x_dir = gp_Dir(1, 0, 0)
+        ax2 = gp_Ax2(origin, z_dir, x_dir)
+        
+        geom_axis = Geom_Axis2Placement(ax2)
+        self.world_cs_ais = AIS_Trihedron(geom_axis)
+        
+        # 设置尺寸和样式
+        self.world_cs_ais.SetSize(axis_length)
+        
+        # 显示但不激活任何选择模式（关键修复）
+        self.viewer._display.Context.Display(self.world_cs_ais, False)
+        self.viewer._display.Repaint()
+    
+    def display_custom_wcs(self):
+        """显示自定义工件坐标系"""
+        if self.wcs_ais:
+            self.viewer._display.Context.Remove(self.wcs_ais, True)
+            self.wcs_ais = None
+        
+        # 从变换矩阵反算原点和方向
+        R_inv = self.wcs_transform[:3, :3].T
+        origin_world = -R_inv @ self.wcs_transform[:3, 3]
+        
+        x_dir_world = R_inv[:, 0]
+        y_dir_world = R_inv[:, 1]
+        z_dir_world = R_inv[:, 2]
+        
+        # 验证方向向量
+        if np.linalg.norm(x_dir_world) < 1e-6 or np.linalg.norm(z_dir_world) < 1e-6:
+            QMessageBox.warning(self, "错误", "坐标系方向向量无效")
+            return
+        
+        # 计算轴长度
+        axis_length = 50.0
+        if self.shape:
+            from OCC.Core.Bnd import Bnd_Box
+            from OCC.Core.BRepBndLib import brepbndlib
+            bbox = Bnd_Box()
+            brepbndlib.Add(self.shape, bbox)
+            xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
+            diagonal = ((xmax-xmin)**2 + (ymax-ymin)**2 + (zmax-zmin)**2) ** 0.5
+            axis_length = diagonal * 0.2  # 自定义坐标系稍大
+        
+        # 创建坐标系
+        try:
+            origin = gp_Pnt(float(origin_world[0]), float(origin_world[1]), float(origin_world[2]))
+            z_dir = gp_Dir(float(z_dir_world[0]), float(z_dir_world[1]), float(z_dir_world[2]))
+            x_dir = gp_Dir(float(x_dir_world[0]), float(x_dir_world[1]), float(x_dir_world[2]))
+            ax2 = gp_Ax2(origin, z_dir, x_dir)
+            
+            geom_axis = Geom_Axis2Placement(ax2)
+            self.wcs_ais = AIS_Trihedron(geom_axis)
+            
+            # 设置尺寸和样式（不透明，更明显）
+            self.wcs_ais.SetSize(axis_length)
+            
+            # 显示但不激活任何选择模式（关键修复）
+            self.viewer._display.Context.Display(self.wcs_ais, False)
+            self.viewer._display.Repaint()
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"创建坐标系失败:\n{e}")
+    
+    def toggle_normals_display(self, checked):
+        """切换法线显示"""
+        self.show_normals = checked
+        if checked:
+            # 显示法线
+            if self.toolpath_points is not None and self.toolpath_normals is not None:
+                self.display_normals()
+        else:
+            # 隐藏法线
+            if self.normals_ais:
+                self.viewer._display.Context.Remove(self.normals_ais, True)
+                self.normals_ais = None
+    
+    def display_normals(self):
+        """显示刀轨法线"""
+        if self.toolpath_points is None or self.toolpath_normals is None:
+            return
+        
+        # 清除旧的法线显示
+        if self.normals_ais:
+            self.viewer._display.Context.Remove(self.normals_ais, True)
+            self.normals_ais = None
+        
+        # 计算合理的法线长度（刀轨包围盒对角线的2%）
+        points = self.toolpath_points
+        normals = -self.toolpath_normals  # 临时反转法线方向
+        bbox_min = np.min(points, axis=0)
+        bbox_max = np.max(points, axis=0)
+        diagonal = np.linalg.norm(bbox_max - bbox_min)
+        normal_length = diagonal * 0.02
+        
+        # 创建法线线段（每隔5个点显示一个法线，避免过于密集）
+        from OCC.Core.TopoDS import TopoDS_Compound
+        from OCC.Core.BRep import BRep_Builder
+        compound = TopoDS_Compound()
+        builder = BRep_Builder()
+        builder.MakeCompound(compound)
+        
+        step = max(1, len(points) // 100)  # 最多显示100个法线
+        for i in range(0, len(points), step):
+            p = points[i]
+            n = normals[i]  # 使用反转后的法线
+            
+            # 起点和终点
+            p1 = gp_Pnt(p[0], p[1], p[2])
+            p2 = gp_Pnt(p[0] + n[0] * normal_length, 
+                        p[1] + n[1] * normal_length, 
+                        p[2] + n[2] * normal_length)
+            
+            edge = BRepBuilderAPI_MakeEdge(p1, p2).Edge()
+            builder.Add(compound, edge)
+        
+        # 显示法线（深绿色）
+        self.normals_ais = AIS_Shape(compound)
+        self.normals_ais.SetColor(Quantity_Color(0.0, 0.5, 0.0, Quantity_TOC_RGB))
+        
+        drawer = self.normals_ais.Attributes()
+        line_aspect = Prs3d_LineAspect(
+            Quantity_Color(0.0, 0.5, 0.0, Quantity_TOC_RGB), 
+            Aspect_TOL_SOLID, 
+            1.5
+        )
+        drawer.SetWireAspect(line_aspect)
+        self.normals_ais.SetAttributes(drawer)
+        
+        self.viewer._display.Context.Display(self.normals_ais, False)
+        self.viewer._display.Repaint()
+    
+    def update_wcs_info(self):
+        """更新工件坐标系变换信息显示"""
+        # 提取原点
+        R_inv = self.wcs_transform[:3, :3].T
+        origin = -R_inv @ self.wcs_transform[:3, 3]
+        
+        # 提取欧拉角 (ZYX顺序)
+        R = self.wcs_transform[:3, :3]
+        sy = np.sqrt(R[0, 0]**2 + R[1, 0]**2)
+        
+        if sy > 1e-6:
+            rx = np.arctan2(R[2, 1], R[2, 2])
+            ry = np.arctan2(-R[2, 0], sy)
+            rz = np.arctan2(R[1, 0], R[0, 0])
+        else:
+            rx = np.arctan2(-R[1, 2], R[1, 1])
+            ry = np.arctan2(-R[2, 0], sy)
+            rz = 0
+        
+        # 转换为角度
+        rx_deg = np.degrees(rx)
+        ry_deg = np.degrees(ry)
+        rz_deg = np.degrees(rz)
+        
+        self.wcs_info_label.setText(
+            f"原点: ({origin[0]:.2f}, {origin[1]:.2f}, {origin[2]:.2f})\n"
+            f"旋转: X={rx_deg:.1f}° Y={ry_deg:.1f}° Z={rz_deg:.1f}°"
+        )
+    
+    def export_toolpath(self):
+        """输出刀路到文件"""
+        if self.toolpath_points is None or self.toolpath_normals is None:
+            QMessageBox.warning(self, "警告", "没有可输出的刀路数据")
+            return
+        
+        # 默认保存路径
+        from pathlib import Path
+        default_dir = str(Path.home() / "Documents")
+        default_name = f"toolpath_{QDateTime.currentDateTime().toString('yyyyMMdd_HHmmss')}.txt"
+        default_path = str(Path(default_dir) / default_name)
+        
+        # 文件保存对话框
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "输出刀路", default_path, "文本文件 (*.txt);;所有文件 (*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            # 转换坐标
+            points_wcs = self.transform_points_to_wcs(self.toolpath_points)
+            normals_wcs = self.transform_normals_to_wcs(self.toolpath_normals)
+            
+            # 写入文件
+            with open(file_path, 'w') as f:
+                f.write("; Toolpath Output\n")
+                f.write(f"; Coordinate System: {'Custom' if self.wcs_mode == 1 else 'World'}\n")
+                f.write(f"; Total Points: {len(points_wcs)}\n")
+                
+                # 计算路径长度
+                total_length = 0.0
+                for i in range(len(points_wcs) - 1):
+                    total_length += np.linalg.norm(points_wcs[i+1] - points_wcs[i])
+                f.write(f"; Path Length: {total_length:.3f} mm\n")
+                f.write(f"; Generated: {QDateTime.currentDateTime().toString('yyyy-MM-dd HH:mm:ss')}\n")
+                f.write(";\n")
+                f.write("; Format: X Y Z Nx Ny Nz\n")
+                f.write(";\n")
+                
+                for i in range(len(points_wcs)):
+                    p = points_wcs[i]
+                    n = normals_wcs[i]
+                    f.write(f"{p[0]:.6f} {p[1]:.6f} {p[2]:.6f} {n[0]:.6f} {n[1]:.6f} {n[2]:.6f}\n")
+            
+            QMessageBox.information(self, "成功", f"刀路已输出到:\n{file_path}")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"输出失败:\n{e}")
+    
+    def transform_points_to_wcs(self, points):
+        """将点从世界坐标系转换到工件坐标系"""
+        if self.wcs_mode == 0:
+            return points
+        
+        # 齐次坐标
+        points_h = np.hstack([points, np.ones((len(points), 1))])
+        # 应用变换
+        points_wcs = (self.wcs_transform @ points_h.T).T
+        return points_wcs[:, :3]
+    
+    def transform_normals_to_wcs(self, normals):
+        """将法线从世界坐标系转换到工件坐标系"""
+        if self.wcs_mode == 0:
+            return normals
+        
+        # 法线只需旋转，不需要平移
+        R = self.wcs_transform[:3, :3]
+        return (R @ normals.T).T
     
     def closeEvent(self, event):
         """关闭窗口"""

@@ -75,7 +75,8 @@ extern "C" void GenerateSurfaceToolpath(
     int start_direction,
     int face_index,
     double** out_points,
-    int* out_count
+    int* out_count,
+    double** out_normals
 ) {
     const char* temp_file = "/tmp/temp_step_input.step";
     std::ofstream ofs(temp_file, std::ios::binary);
@@ -87,6 +88,7 @@ extern "C" void GenerateSurfaceToolpath(
     if (reader.ReadFile(temp_file) != IFSelect_RetDone) {
         *out_points = nullptr;
         *out_count = 0;
+        *out_normals = nullptr;
         return;
     }
     
@@ -124,6 +126,7 @@ extern "C" void GenerateSurfaceToolpath(
     if (target_face.IsNull()) {
         *out_points = nullptr;
         *out_count = 0;
+        *out_normals = nullptr;
         return;
     }
     
@@ -134,8 +137,13 @@ extern "C" void GenerateSurfaceToolpath(
         if (surface.IsNull()) {
             *out_points = nullptr;
             *out_count = 0;
+            *out_normals = nullptr;
             return;
         }
+        
+        // 获取面的方向（用于法线翻转）
+        TopAbs_Orientation face_orientation = target_face.Orientation();
+        bool reverse_normal = (face_orientation == TopAbs_REVERSED);
         
         Standard_Real u_min, u_max, v_min, v_max;
         BRepTools::UVBounds(target_face, u_min, u_max, v_min, v_max);
@@ -151,7 +159,9 @@ extern "C" void GenerateSurfaceToolpath(
         const int POINTS_PER_EDGE = 25;
         
         std::vector<double> all_points;
+        std::vector<double> all_normals;
         all_points.reserve(num_paths * (4 * POINTS_PER_EDGE + 1) * 3);
+        all_normals.reserve(num_paths * (4 * POINTS_PER_EDGE + 1) * 3);
         
         for (int layer = 0; layer < num_paths; ++layer) {
             double shrink_u = layer * shrink_step_u;
@@ -174,62 +184,111 @@ extern "C" void GenerateSurfaceToolpath(
             for (int i = 0; i < nu; ++i) {
                 double u = u0 + du * i / nu;
                 gp_Pnt pnt;
-                surface->D0(u, v0, pnt);
+                gp_Vec du_vec, dv_vec;
+                surface->D1(u, v0, pnt, du_vec, dv_vec);
+                gp_Vec normal = du_vec.Crossed(dv_vec);
+                if (normal.Magnitude() > 1e-9) {
+                    normal.Normalize();
+                    if (reverse_normal) normal.Reverse();
+                }
                 all_points.push_back(pnt.X());
                 all_points.push_back(pnt.Y());
                 all_points.push_back(pnt.Z());
+                all_normals.push_back(normal.X());
+                all_normals.push_back(normal.Y());
+                all_normals.push_back(normal.Z());
             }
             
             // 右边 (u=u1, v: v0->v1)
             for (int i = 0; i < nv; ++i) {
                 double v = v0 + dv * i / nv;
                 gp_Pnt pnt;
-                surface->D0(u1, v, pnt);
+                gp_Vec du_vec, dv_vec;
+                surface->D1(u1, v, pnt, du_vec, dv_vec);
+                gp_Vec normal = du_vec.Crossed(dv_vec);
+                if (normal.Magnitude() > 1e-9) {
+                    normal.Normalize();
+                    if (reverse_normal) normal.Reverse();
+                }
                 all_points.push_back(pnt.X());
                 all_points.push_back(pnt.Y());
                 all_points.push_back(pnt.Z());
+                all_normals.push_back(normal.X());
+                all_normals.push_back(normal.Y());
+                all_normals.push_back(normal.Z());
             }
             
             // 顶边 (v=v1, u: u1->u0)
             for (int i = 0; i < nu; ++i) {
                 double u = u1 - du * i / nu;
                 gp_Pnt pnt;
-                surface->D0(u, v1, pnt);
+                gp_Vec du_vec, dv_vec;
+                surface->D1(u, v1, pnt, du_vec, dv_vec);
+                gp_Vec normal = du_vec.Crossed(dv_vec);
+                if (normal.Magnitude() > 1e-9) {
+                    normal.Normalize();
+                    if (reverse_normal) normal.Reverse();
+                }
                 all_points.push_back(pnt.X());
                 all_points.push_back(pnt.Y());
                 all_points.push_back(pnt.Z());
+                all_normals.push_back(normal.X());
+                all_normals.push_back(normal.Y());
+                all_normals.push_back(normal.Z());
             }
             
             // 左边 (u=u0, v: v1->v0)
             for (int i = 0; i < nv; ++i) {
                 double v = v1 - dv * i / nv;
                 gp_Pnt pnt;
-                surface->D0(u0, v, pnt);
+                gp_Vec du_vec, dv_vec;
+                surface->D1(u0, v, pnt, du_vec, dv_vec);
+                gp_Vec normal = du_vec.Crossed(dv_vec);
+                if (normal.Magnitude() > 1e-9) {
+                    normal.Normalize();
+                    if (reverse_normal) normal.Reverse();
+                }
                 all_points.push_back(pnt.X());
                 all_points.push_back(pnt.Y());
                 all_points.push_back(pnt.Z());
+                all_normals.push_back(normal.X());
+                all_normals.push_back(normal.Y());
+                all_normals.push_back(normal.Z());
             }
             
             // 闭合：重复起点
             gp_Pnt pnt0;
-            surface->D0(u0, v0, pnt0);
+            gp_Vec du_vec0, dv_vec0;
+            surface->D1(u0, v0, pnt0, du_vec0, dv_vec0);
+            gp_Vec normal0 = du_vec0.Crossed(dv_vec0);
+            if (normal0.Magnitude() > 1e-9) {
+                normal0.Normalize();
+                if (reverse_normal) normal0.Reverse();
+            }
             all_points.push_back(pnt0.X());
             all_points.push_back(pnt0.Y());
             all_points.push_back(pnt0.Z());
+            all_normals.push_back(normal0.X());
+            all_normals.push_back(normal0.Y());
+            all_normals.push_back(normal0.Z());
         }
         
         if (all_points.empty()) {
             *out_points = nullptr;
             *out_count = 0;
+            *out_normals = nullptr;
             return;
         }
         
         int total_points = all_points.size() / 3;
         double* points = (double*)malloc(all_points.size() * sizeof(double));
+        double* normals = (double*)malloc(all_normals.size() * sizeof(double));
         std::copy(all_points.begin(), all_points.end(), points);
+        std::copy(all_normals.begin(), all_normals.end(), normals);
         
         *out_points = points;
         *out_count = total_points;
+        *out_normals = normals;
         
     } else {
         // 行切模式
@@ -238,8 +297,13 @@ extern "C" void GenerateSurfaceToolpath(
         if (surface.IsNull()) {
             *out_points = nullptr;
             *out_count = 0;
+            *out_normals = nullptr;
             return;
         }
+        
+        // 获取面的方向（用于法线翻转）
+        TopAbs_Orientation face_orientation = target_face.Orientation();
+        bool reverse_normal = (face_orientation == TopAbs_REVERSED);
         
         Standard_Real u_min, u_max, v_min, v_max;
         BRepTools::UVBounds(target_face, u_min, u_max, v_min, v_max);
@@ -249,6 +313,7 @@ extern "C" void GenerateSurfaceToolpath(
         int total_points = u_steps * v_steps;
         
         double* points = (double*)malloc(total_points * 3 * sizeof(double));
+        double* normals = (double*)malloc(total_points * 3 * sizeof(double));
         
         int idx = 0;
         
@@ -262,20 +327,40 @@ extern "C" void GenerateSurfaceToolpath(
                         double v = std::min(v_min + i * step_v, v_max);
                         
                         gp_Pnt pnt;
-                        surface->D0(u, v, pnt);
-                        points[idx++] = pnt.X();
-                        points[idx++] = pnt.Y();
-                        points[idx++] = pnt.Z();
+                        gp_Vec du_vec, dv_vec;
+                        surface->D1(u, v, pnt, du_vec, dv_vec);
+                        gp_Vec normal = du_vec.Crossed(dv_vec);
+                        if (normal.Magnitude() > 1e-9) {
+                            normal.Normalize();
+                            if (reverse_normal) normal.Reverse();
+                        }
+                        points[idx] = pnt.X();
+                        points[idx+1] = pnt.Y();
+                        points[idx+2] = pnt.Z();
+                        normals[idx] = normal.X();
+                        normals[idx+1] = normal.Y();
+                        normals[idx+2] = normal.Z();
+                        idx += 3;
                     }
                 } else {
                     for (int i = v_steps - 1; i >= 0; --i) {
                         double v = std::min(v_min + i * step_v, v_max);
                         
                         gp_Pnt pnt;
-                        surface->D0(u, v, pnt);
-                        points[idx++] = pnt.X();
-                        points[idx++] = pnt.Y();
-                        points[idx++] = pnt.Z();
+                        gp_Vec du_vec, dv_vec;
+                        surface->D1(u, v, pnt, du_vec, dv_vec);
+                        gp_Vec normal = du_vec.Crossed(dv_vec);
+                        if (normal.Magnitude() > 1e-9) {
+                            normal.Normalize();
+                            if (reverse_normal) normal.Reverse();
+                        }
+                        points[idx] = pnt.X();
+                        points[idx+1] = pnt.Y();
+                        points[idx+2] = pnt.Z();
+                        normals[idx] = normal.X();
+                        normals[idx+1] = normal.Y();
+                        normals[idx+2] = normal.Z();
+                        idx += 3;
                     }
                 }
             }
@@ -289,20 +374,40 @@ extern "C" void GenerateSurfaceToolpath(
                         double u = std::min(u_min + j * step_u, u_max);
                         
                         gp_Pnt pnt;
-                        surface->D0(u, v, pnt);
-                        points[idx++] = pnt.X();
-                        points[idx++] = pnt.Y();
-                        points[idx++] = pnt.Z();
+                        gp_Vec du_vec, dv_vec;
+                        surface->D1(u, v, pnt, du_vec, dv_vec);
+                        gp_Vec normal = du_vec.Crossed(dv_vec);
+                        if (normal.Magnitude() > 1e-9) {
+                            normal.Normalize();
+                            if (reverse_normal) normal.Reverse();
+                        }
+                        points[idx] = pnt.X();
+                        points[idx+1] = pnt.Y();
+                        points[idx+2] = pnt.Z();
+                        normals[idx] = normal.X();
+                        normals[idx+1] = normal.Y();
+                        normals[idx+2] = normal.Z();
+                        idx += 3;
                     }
                 } else {
                     for (int j = u_steps - 1; j >= 0; --j) {
                         double u = std::min(u_min + j * step_u, u_max);
                         
                         gp_Pnt pnt;
-                        surface->D0(u, v, pnt);
-                        points[idx++] = pnt.X();
-                        points[idx++] = pnt.Y();
-                        points[idx++] = pnt.Z();
+                        gp_Vec du_vec, dv_vec;
+                        surface->D1(u, v, pnt, du_vec, dv_vec);
+                        gp_Vec normal = du_vec.Crossed(dv_vec);
+                        if (normal.Magnitude() > 1e-9) {
+                            normal.Normalize();
+                            if (reverse_normal) normal.Reverse();
+                        }
+                        points[idx] = pnt.X();
+                        points[idx+1] = pnt.Y();
+                        points[idx+2] = pnt.Z();
+                        normals[idx] = normal.X();
+                        normals[idx+1] = normal.Y();
+                        normals[idx+2] = normal.Z();
+                        idx += 3;
                     }
                 }
             }
@@ -310,5 +415,6 @@ extern "C" void GenerateSurfaceToolpath(
         
         *out_points = points;
         *out_count = total_points;
+        *out_normals = normals;
     }
 }

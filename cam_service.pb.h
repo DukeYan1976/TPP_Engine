@@ -505,6 +505,7 @@ class CalculationResponse final : public ::google::protobuf::Message
   // accessors -------------------------------------------------------
   enum : int {
     kRawVerticesFieldNumber = 1,
+    kRawNormalsFieldNumber = 3,
     kPointCountFieldNumber = 2,
   };
   // bytes raw_vertices = 1;
@@ -522,6 +523,21 @@ class CalculationResponse final : public ::google::protobuf::Message
   ::std::string* PROTOBUF_NONNULL _internal_mutable_raw_vertices();
 
   public:
+  // bytes raw_normals = 3;
+  void clear_raw_normals() ;
+  const ::std::string& raw_normals() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_raw_normals(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_raw_normals();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_raw_normals();
+  void set_allocated_raw_normals(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_raw_normals() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_raw_normals(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_raw_normals();
+
+  public:
   // int32 point_count = 2;
   void clear_point_count() ;
   ::int32_t point_count() const;
@@ -536,7 +552,7 @@ class CalculationResponse final : public ::google::protobuf::Message
  private:
   class _Internal;
   friend class ::google::protobuf::internal::TcParser;
-  static const ::google::protobuf::internal::TcParseTable<1, 2,
+  static const ::google::protobuf::internal::TcParseTable<2, 3,
                                    0, 0,
                                    2>
       _table_;
@@ -559,6 +575,7 @@ class CalculationResponse final : public ::google::protobuf::Message
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
     ::google::protobuf::internal::ArenaStringPtr raw_vertices_;
+    ::google::protobuf::internal::ArenaStringPtr raw_normals_;
     ::int32_t point_count_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
@@ -1305,7 +1322,7 @@ inline void CalculationResponse::clear_point_count() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.point_count_ = 0;
   ClearHasBit(_impl_._has_bits_[0],
-                  0x00000002U);
+                  0x00000004U);
 }
 inline ::int32_t CalculationResponse::point_count() const {
   // @@protoc_insertion_point(field_get:cam.CalculationResponse.point_count)
@@ -1313,7 +1330,7 @@ inline ::int32_t CalculationResponse::point_count() const {
 }
 inline void CalculationResponse::set_point_count(::int32_t value) {
   _internal_set_point_count(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
   // @@protoc_insertion_point(field_set:cam.CalculationResponse.point_count)
 }
 inline ::int32_t CalculationResponse::_internal_point_count() const {
@@ -1323,6 +1340,71 @@ inline ::int32_t CalculationResponse::_internal_point_count() const {
 inline void CalculationResponse::_internal_set_point_count(::int32_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.point_count_ = value;
+}
+
+// bytes raw_normals = 3;
+inline void CalculationResponse::clear_raw_normals() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.raw_normals_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0],
+                  0x00000002U);
+}
+inline const ::std::string& CalculationResponse::raw_normals() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:cam.CalculationResponse.raw_normals)
+  return _internal_raw_normals();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void CalculationResponse::set_raw_normals(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  _impl_.raw_normals_.SetBytes(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:cam.CalculationResponse.raw_normals)
+}
+inline ::std::string* PROTOBUF_NONNULL CalculationResponse::mutable_raw_normals()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ::std::string* _s = _internal_mutable_raw_normals();
+  // @@protoc_insertion_point(field_mutable:cam.CalculationResponse.raw_normals)
+  return _s;
+}
+inline const ::std::string& CalculationResponse::_internal_raw_normals() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.raw_normals_.Get();
+}
+inline void CalculationResponse::_internal_set_raw_normals(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.raw_normals_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL CalculationResponse::_internal_mutable_raw_normals() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.raw_normals_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE CalculationResponse::release_raw_normals() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:cam.CalculationResponse.raw_normals)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  auto* released = _impl_.raw_normals_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.raw_normals_.Set("", GetArena());
+  }
+  return released;
+}
+inline void CalculationResponse::set_allocated_raw_normals(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  }
+  _impl_.raw_normals_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.raw_normals_.IsDefault()) {
+    _impl_.raw_normals_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:cam.CalculationResponse.raw_normals)
 }
 
 #ifdef __GNUC__

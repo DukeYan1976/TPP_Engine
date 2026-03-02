@@ -32,6 +32,9 @@ inline constexpr SurfaceCalculationRequest::Impl_::Impl_(
         step_data_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
+        model_hash_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
         step_u_{0},
         step_v_{0},
         toolpath_mode_{0},
@@ -63,6 +66,9 @@ inline constexpr CalculationResponse::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
         raw_vertices_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        raw_normals_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
         point_count_{0} {}
@@ -138,7 +144,7 @@ const ::uint32_t
         4,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::cam::SurfaceCalculationRequest, _impl_._has_bits_),
-        10, // hasbit index offset
+        11, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::cam::SurfaceCalculationRequest, _impl_.step_data_),
         PROTOBUF_FIELD_OFFSET(::cam::SurfaceCalculationRequest, _impl_.step_u_),
         PROTOBUF_FIELD_OFFSET(::cam::SurfaceCalculationRequest, _impl_.step_v_),
@@ -146,19 +152,23 @@ const ::uint32_t
         PROTOBUF_FIELD_OFFSET(::cam::SurfaceCalculationRequest, _impl_.num_paths_),
         PROTOBUF_FIELD_OFFSET(::cam::SurfaceCalculationRequest, _impl_.start_direction_),
         PROTOBUF_FIELD_OFFSET(::cam::SurfaceCalculationRequest, _impl_.face_index_),
+        PROTOBUF_FIELD_OFFSET(::cam::SurfaceCalculationRequest, _impl_.model_hash_),
         0,
-        1,
         2,
         3,
         4,
         5,
         6,
+        7,
+        1,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::cam::CalculationResponse, _impl_._has_bits_),
-        5, // hasbit index offset
+        6, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::cam::CalculationResponse, _impl_.raw_vertices_),
         PROTOBUF_FIELD_OFFSET(::cam::CalculationResponse, _impl_.point_count_),
+        PROTOBUF_FIELD_OFFSET(::cam::CalculationResponse, _impl_.raw_normals_),
         0,
+        2,
         1,
 };
 
@@ -166,7 +176,7 @@ static const ::_pbi::MigrationSchema
     schemas[] ABSL_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
         {0, sizeof(::cam::CalculationRequest)},
         {13, sizeof(::cam::SurfaceCalculationRequest)},
-        {30, sizeof(::cam::CalculationResponse)},
+        {32, sizeof(::cam::CalculationResponse)},
 };
 static const ::_pb::Message* PROTOBUF_NONNULL const file_default_instances[] = {
     &::cam::_CalculationRequest_default_instance_._instance,
@@ -178,23 +188,24 @@ const char descriptor_table_protodef_cam_5fservice_2eproto[] ABSL_ATTRIBUTE_SECT
     "\n\021cam_service.proto\022\003cam\"_\n\022CalculationR"
     "equest\022\r\n\005X_min\030\001 \001(\001\022\r\n\005X_max\030\002 \001(\001\022\r\n\005"
     "Y_min\030\003 \001(\001\022\r\n\005Y_max\030\004 \001(\001\022\r\n\005Z_max\030\005 \001("
-    "\001\"\245\001\n\031SurfaceCalculationRequest\022\021\n\tstep_"
+    "\001\"\271\001\n\031SurfaceCalculationRequest\022\021\n\tstep_"
     "data\030\001 \001(\014\022\016\n\006step_u\030\002 \001(\001\022\016\n\006step_v\030\003 \001"
     "(\001\022\025\n\rtoolpath_mode\030\004 \001(\005\022\021\n\tnum_paths\030\005"
     " \001(\005\022\027\n\017start_direction\030\006 \001(\005\022\022\n\nface_in"
-    "dex\030\007 \001(\005\"@\n\023CalculationResponse\022\024\n\014raw_"
-    "vertices\030\001 \001(\014\022\023\n\013point_count\030\002 \001(\0052\265\001\n\025"
-    "CamCalculationService\022F\n\021CalculateToolpa"
-    "th\022\027.cam.CalculationRequest\032\030.cam.Calcul"
-    "ationResponse\022T\n\030CalculateSurfaceToolpat"
-    "h\022\036.cam.SurfaceCalculationRequest\032\030.cam."
-    "CalculationResponseb\006proto3"
+    "dex\030\007 \001(\005\022\022\n\nmodel_hash\030\010 \001(\t\"U\n\023Calcula"
+    "tionResponse\022\024\n\014raw_vertices\030\001 \001(\014\022\023\n\013po"
+    "int_count\030\002 \001(\005\022\023\n\013raw_normals\030\003 \001(\0142\265\001\n"
+    "\025CamCalculationService\022F\n\021CalculateToolp"
+    "ath\022\027.cam.CalculationRequest\032\030.cam.Calcu"
+    "lationResponse\022T\n\030CalculateSurfaceToolpa"
+    "th\022\036.cam.SurfaceCalculationRequest\032\030.cam"
+    ".CalculationResponseb\006proto3"
 };
 static ::absl::once_flag descriptor_table_cam_5fservice_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_cam_5fservice_2eproto = {
     false,
     false,
-    547,
+    588,
     descriptor_table_protodef_cam_5fservice_2eproto,
     "cam_service.proto",
     &descriptor_table_cam_5fservice_2eproto_once,
@@ -605,7 +616,8 @@ PROTOBUF_NDEBUG_INLINE SurfaceCalculationRequest::Impl_::Impl_(
     [[maybe_unused]] const ::cam::SurfaceCalculationRequest& from_msg)
       : _has_bits_{from._has_bits_},
         _cached_size_{0},
-        step_data_(arena, from.step_data_) {}
+        step_data_(arena, from.step_data_),
+        model_hash_(arena, from.model_hash_) {}
 
 SurfaceCalculationRequest::SurfaceCalculationRequest(
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
@@ -634,7 +646,8 @@ PROTOBUF_NDEBUG_INLINE SurfaceCalculationRequest::Impl_::Impl_(
     [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
     [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
       : _cached_size_{0},
-        step_data_(arena) {}
+        step_data_(arena),
+        model_hash_(arena) {}
 
 inline void SurfaceCalculationRequest::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
@@ -657,6 +670,7 @@ inline void SurfaceCalculationRequest::SharedDtor(MessageLite& self) {
   this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
   ABSL_DCHECK(this_.GetArena() == nullptr);
   this_._impl_.step_data_.Destroy();
+  this_._impl_.model_hash_.Destroy();
   this_._impl_.~Impl_();
 }
 
@@ -703,16 +717,16 @@ SurfaceCalculationRequest::GetClassData() const {
   return SurfaceCalculationRequest_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<3, 7, 0, 0, 2>
+const ::_pbi::TcParseTable<3, 8, 0, 56, 2>
 SurfaceCalculationRequest::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_._has_bits_),
     0, // no _extensions_
-    7, 56,  // max_field_number, fast_idx_mask
+    8, 56,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967168,  // skipmap
+    4294967040,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    7,  // num_field_entries
+    8,  // num_field_entries
     0,  // num_aux_entries
     offsetof(decltype(_table_), field_names),  // no aux_entries
     SurfaceCalculationRequest_class_data_.base(),
@@ -722,34 +736,37 @@ SurfaceCalculationRequest::_table_ = {
     ::_pbi::TcParser::GetTable<::cam::SurfaceCalculationRequest>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
-    {::_pbi::TcParser::MiniParse, {}},
+    // string model_hash = 8;
+    {::_pbi::TcParser::FastUS1,
+     {66, 1, 0,
+      PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.model_hash_)}},
     // bytes step_data = 1;
     {::_pbi::TcParser::FastBS1,
      {10, 0, 0,
       PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.step_data_)}},
     // double step_u = 2;
     {::_pbi::TcParser::FastF64S1,
-     {17, 1, 0,
+     {17, 2, 0,
       PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.step_u_)}},
     // double step_v = 3;
     {::_pbi::TcParser::FastF64S1,
-     {25, 2, 0,
+     {25, 3, 0,
       PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.step_v_)}},
     // int32 toolpath_mode = 4;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(SurfaceCalculationRequest, _impl_.toolpath_mode_), 3>(),
-     {32, 3, 0,
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(SurfaceCalculationRequest, _impl_.toolpath_mode_), 4>(),
+     {32, 4, 0,
       PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.toolpath_mode_)}},
     // int32 num_paths = 5;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(SurfaceCalculationRequest, _impl_.num_paths_), 4>(),
-     {40, 4, 0,
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(SurfaceCalculationRequest, _impl_.num_paths_), 5>(),
+     {40, 5, 0,
       PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.num_paths_)}},
     // int32 start_direction = 6;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(SurfaceCalculationRequest, _impl_.start_direction_), 5>(),
-     {48, 5, 0,
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(SurfaceCalculationRequest, _impl_.start_direction_), 6>(),
+     {48, 6, 0,
       PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.start_direction_)}},
     // int32 face_index = 7;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(SurfaceCalculationRequest, _impl_.face_index_), 6>(),
-     {56, 6, 0,
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(SurfaceCalculationRequest, _impl_.face_index_), 7>(),
+     {56, 7, 0,
       PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.face_index_)}},
   }}, {{
     65535, 65535
@@ -757,20 +774,25 @@ SurfaceCalculationRequest::_table_ = {
     // bytes step_data = 1;
     {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.step_data_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kBytes | ::_fl::kRepAString)},
     // double step_u = 2;
-    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.step_u_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kDouble)},
+    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.step_u_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kDouble)},
     // double step_v = 3;
-    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.step_v_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kDouble)},
+    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.step_v_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kDouble)},
     // int32 toolpath_mode = 4;
-    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.toolpath_mode_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.toolpath_mode_), _Internal::kHasBitsOffset + 4, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // int32 num_paths = 5;
-    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.num_paths_), _Internal::kHasBitsOffset + 4, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.num_paths_), _Internal::kHasBitsOffset + 5, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // int32 start_direction = 6;
-    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.start_direction_), _Internal::kHasBitsOffset + 5, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.start_direction_), _Internal::kHasBitsOffset + 6, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
     // int32 face_index = 7;
-    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.face_index_), _Internal::kHasBitsOffset + 6, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.face_index_), _Internal::kHasBitsOffset + 7, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    // string model_hash = 8;
+    {PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.model_hash_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
   }},
   // no aux_entries
   {{
+    "\35\0\0\0\0\0\0\0\12\0\0\0\0\0\0\0"
+    "cam.SurfaceCalculationRequest"
+    "model_hash"
   }},
 };
 PROTOBUF_NOINLINE void SurfaceCalculationRequest::Clear() {
@@ -781,10 +803,15 @@ PROTOBUF_NOINLINE void SurfaceCalculationRequest::Clear() {
   (void) cached_has_bits;
 
   cached_has_bits = _impl_._has_bits_[0];
-  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
-    _impl_.step_data_.ClearNonDefaultToEmpty();
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.step_data_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.model_hash_.ClearNonDefaultToEmpty();
+    }
   }
-  if (BatchCheckHasBit(cached_has_bits, 0x0000007eU)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x000000fcU)) {
     ::memset(&_impl_.step_u_, 0, static_cast<::size_t>(
         reinterpret_cast<char*>(&_impl_.face_index_) -
         reinterpret_cast<char*>(&_impl_.step_u_)) + sizeof(_impl_.face_index_));
@@ -821,7 +848,7 @@ PROTOBUF_NOINLINE void SurfaceCalculationRequest::Clear() {
   }
 
   // double step_u = 2;
-  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
     if (::absl::bit_cast<::uint64_t>(this_._internal_step_u()) != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteDoubleToArray(
@@ -830,7 +857,7 @@ PROTOBUF_NOINLINE void SurfaceCalculationRequest::Clear() {
   }
 
   // double step_v = 3;
-  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000008U)) {
     if (::absl::bit_cast<::uint64_t>(this_._internal_step_v()) != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteDoubleToArray(
@@ -839,7 +866,7 @@ PROTOBUF_NOINLINE void SurfaceCalculationRequest::Clear() {
   }
 
   // int32 toolpath_mode = 4;
-  if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000010U)) {
     if (this_._internal_toolpath_mode() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<4>(
@@ -848,7 +875,7 @@ PROTOBUF_NOINLINE void SurfaceCalculationRequest::Clear() {
   }
 
   // int32 num_paths = 5;
-  if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000020U)) {
     if (this_._internal_num_paths() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<5>(
@@ -857,7 +884,7 @@ PROTOBUF_NOINLINE void SurfaceCalculationRequest::Clear() {
   }
 
   // int32 start_direction = 6;
-  if (CheckHasBit(cached_has_bits, 0x00000020U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000040U)) {
     if (this_._internal_start_direction() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<6>(
@@ -866,11 +893,21 @@ PROTOBUF_NOINLINE void SurfaceCalculationRequest::Clear() {
   }
 
   // int32 face_index = 7;
-  if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000080U)) {
     if (this_._internal_face_index() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<7>(
               stream, this_._internal_face_index(), target);
+    }
+  }
+
+  // string model_hash = 8;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_model_hash().empty()) {
+      const ::std::string& _s = this_._internal_model_hash();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "cam.SurfaceCalculationRequest.model_hash");
+      target = stream->WriteStringMaybeAliased(8, _s, target);
     }
   }
 
@@ -899,7 +936,7 @@ PROTOBUF_NOINLINE void SurfaceCalculationRequest::Clear() {
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x0000007fU)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x000000ffU)) {
     // bytes step_data = 1;
     if (CheckHasBit(cached_has_bits, 0x00000001U)) {
       if (!this_._internal_step_data().empty()) {
@@ -907,41 +944,48 @@ PROTOBUF_NOINLINE void SurfaceCalculationRequest::Clear() {
                                         this_._internal_step_data());
       }
     }
-    // double step_u = 2;
+    // string model_hash = 8;
     if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!this_._internal_model_hash().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_model_hash());
+      }
+    }
+    // double step_u = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       if (::absl::bit_cast<::uint64_t>(this_._internal_step_u()) != 0) {
         total_size += 9;
       }
     }
     // double step_v = 3;
-    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
       if (::absl::bit_cast<::uint64_t>(this_._internal_step_v()) != 0) {
         total_size += 9;
       }
     }
     // int32 toolpath_mode = 4;
-    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
       if (this_._internal_toolpath_mode() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_toolpath_mode());
       }
     }
     // int32 num_paths = 5;
-    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000020U)) {
       if (this_._internal_num_paths() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_num_paths());
       }
     }
     // int32 start_direction = 6;
-    if (CheckHasBit(cached_has_bits, 0x00000020U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000040U)) {
       if (this_._internal_start_direction() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_start_direction());
       }
     }
     // int32 face_index = 7;
-    if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000080U)) {
       if (this_._internal_face_index() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_face_index());
@@ -966,7 +1010,7 @@ void SurfaceCalculationRequest::MergeImpl(::google::protobuf::MessageLite& to_ms
   (void)cached_has_bits;
 
   cached_has_bits = from._impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x0000007fU)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x000000ffU)) {
     if (CheckHasBit(cached_has_bits, 0x00000001U)) {
       if (!from._internal_step_data().empty()) {
         _this->_internal_set_step_data(from._internal_step_data());
@@ -977,31 +1021,40 @@ void SurfaceCalculationRequest::MergeImpl(::google::protobuf::MessageLite& to_ms
       }
     }
     if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!from._internal_model_hash().empty()) {
+        _this->_internal_set_model_hash(from._internal_model_hash());
+      } else {
+        if (_this->_impl_.model_hash_.IsDefault()) {
+          _this->_internal_set_model_hash("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       if (::absl::bit_cast<::uint64_t>(from._internal_step_u()) != 0) {
         _this->_impl_.step_u_ = from._impl_.step_u_;
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
       if (::absl::bit_cast<::uint64_t>(from._internal_step_v()) != 0) {
         _this->_impl_.step_v_ = from._impl_.step_v_;
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
       if (from._internal_toolpath_mode() != 0) {
         _this->_impl_.toolpath_mode_ = from._impl_.toolpath_mode_;
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000020U)) {
       if (from._internal_num_paths() != 0) {
         _this->_impl_.num_paths_ = from._impl_.num_paths_;
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000020U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000040U)) {
       if (from._internal_start_direction() != 0) {
         _this->_impl_.start_direction_ = from._impl_.start_direction_;
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000080U)) {
       if (from._internal_face_index() != 0) {
         _this->_impl_.face_index_ = from._impl_.face_index_;
       }
@@ -1027,6 +1080,7 @@ void SurfaceCalculationRequest::InternalSwap(SurfaceCalculationRequest* PROTOBUF
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.step_data_, &other->_impl_.step_data_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.model_hash_, &other->_impl_.model_hash_, arena);
   ::google::protobuf::internal::memswap<
       PROTOBUF_FIELD_OFFSET(SurfaceCalculationRequest, _impl_.face_index_)
       + sizeof(SurfaceCalculationRequest::_impl_.face_index_)
@@ -1063,7 +1117,8 @@ PROTOBUF_NDEBUG_INLINE CalculationResponse::Impl_::Impl_(
     [[maybe_unused]] const ::cam::CalculationResponse& from_msg)
       : _has_bits_{from._has_bits_},
         _cached_size_{0},
-        raw_vertices_(arena, from.raw_vertices_) {}
+        raw_vertices_(arena, from.raw_vertices_),
+        raw_normals_(arena, from.raw_normals_) {}
 
 CalculationResponse::CalculationResponse(
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
@@ -1086,7 +1141,8 @@ PROTOBUF_NDEBUG_INLINE CalculationResponse::Impl_::Impl_(
     [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
     [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
       : _cached_size_{0},
-        raw_vertices_(arena) {}
+        raw_vertices_(arena),
+        raw_normals_(arena) {}
 
 inline void CalculationResponse::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
@@ -1104,6 +1160,7 @@ inline void CalculationResponse::SharedDtor(MessageLite& self) {
   this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
   ABSL_DCHECK(this_.GetArena() == nullptr);
   this_._impl_.raw_vertices_.Destroy();
+  this_._impl_.raw_normals_.Destroy();
   this_._impl_.~Impl_();
 }
 
@@ -1150,16 +1207,16 @@ CalculationResponse::GetClassData() const {
   return CalculationResponse_class_data_.base();
 }
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<1, 2, 0, 0, 2>
+const ::_pbi::TcParseTable<2, 3, 0, 0, 2>
 CalculationResponse::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_._has_bits_),
     0, // no _extensions_
-    2, 8,  // max_field_number, fast_idx_mask
+    3, 24,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967292,  // skipmap
+    4294967288,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    2,  // num_field_entries
+    3,  // num_field_entries
     0,  // num_aux_entries
     offsetof(decltype(_table_), field_names),  // no aux_entries
     CalculationResponse_class_data_.base(),
@@ -1169,21 +1226,28 @@ CalculationResponse::_table_ = {
     ::_pbi::TcParser::GetTable<::cam::CalculationResponse>(),  // to_prefetch
     #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
   }, {{
-    // int32 point_count = 2;
-    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(CalculationResponse, _impl_.point_count_), 1>(),
-     {16, 1, 0,
-      PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.point_count_)}},
+    {::_pbi::TcParser::MiniParse, {}},
     // bytes raw_vertices = 1;
     {::_pbi::TcParser::FastBS1,
      {10, 0, 0,
       PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.raw_vertices_)}},
+    // int32 point_count = 2;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(CalculationResponse, _impl_.point_count_), 2>(),
+     {16, 2, 0,
+      PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.point_count_)}},
+    // bytes raw_normals = 3;
+    {::_pbi::TcParser::FastBS1,
+     {26, 1, 0,
+      PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.raw_normals_)}},
   }}, {{
     65535, 65535
   }}, {{
     // bytes raw_vertices = 1;
     {PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.raw_vertices_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kBytes | ::_fl::kRepAString)},
     // int32 point_count = 2;
-    {PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.point_count_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    {PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.point_count_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt32)},
+    // bytes raw_normals = 3;
+    {PROTOBUF_FIELD_OFFSET(CalculationResponse, _impl_.raw_normals_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kBytes | ::_fl::kRepAString)},
   }},
   // no aux_entries
   {{
@@ -1197,8 +1261,13 @@ PROTOBUF_NOINLINE void CalculationResponse::Clear() {
   (void) cached_has_bits;
 
   cached_has_bits = _impl_._has_bits_[0];
-  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
-    _impl_.raw_vertices_.ClearNonDefaultToEmpty();
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.raw_vertices_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.raw_normals_.ClearNonDefaultToEmpty();
+    }
   }
   _impl_.point_count_ = 0;
   _impl_._has_bits_.Clear();
@@ -1233,11 +1302,19 @@ PROTOBUF_NOINLINE void CalculationResponse::Clear() {
   }
 
   // int32 point_count = 2;
-  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
     if (this_._internal_point_count() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt32ToArrayWithField<2>(
               stream, this_._internal_point_count(), target);
+    }
+  }
+
+  // bytes raw_normals = 3;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_raw_normals().empty()) {
+      const ::std::string& _s = this_._internal_raw_normals();
+      target = stream->WriteBytesMaybeAliased(3, _s, target);
     }
   }
 
@@ -1266,7 +1343,7 @@ PROTOBUF_NOINLINE void CalculationResponse::Clear() {
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x00000007U)) {
     // bytes raw_vertices = 1;
     if (CheckHasBit(cached_has_bits, 0x00000001U)) {
       if (!this_._internal_raw_vertices().empty()) {
@@ -1274,8 +1351,15 @@ PROTOBUF_NOINLINE void CalculationResponse::Clear() {
                                         this_._internal_raw_vertices());
       }
     }
-    // int32 point_count = 2;
+    // bytes raw_normals = 3;
     if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!this_._internal_raw_normals().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::BytesSize(
+                                        this_._internal_raw_normals());
+      }
+    }
+    // int32 point_count = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       if (this_._internal_point_count() != 0) {
         total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
             this_._internal_point_count());
@@ -1300,7 +1384,7 @@ void CalculationResponse::MergeImpl(::google::protobuf::MessageLite& to_msg,
   (void)cached_has_bits;
 
   cached_has_bits = from._impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x00000007U)) {
     if (CheckHasBit(cached_has_bits, 0x00000001U)) {
       if (!from._internal_raw_vertices().empty()) {
         _this->_internal_set_raw_vertices(from._internal_raw_vertices());
@@ -1311,6 +1395,15 @@ void CalculationResponse::MergeImpl(::google::protobuf::MessageLite& to_msg,
       }
     }
     if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!from._internal_raw_normals().empty()) {
+        _this->_internal_set_raw_normals(from._internal_raw_normals());
+      } else {
+        if (_this->_impl_.raw_normals_.IsDefault()) {
+          _this->_internal_set_raw_normals("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       if (from._internal_point_count() != 0) {
         _this->_impl_.point_count_ = from._impl_.point_count_;
       }
@@ -1336,6 +1429,7 @@ void CalculationResponse::InternalSwap(CalculationResponse* PROTOBUF_RESTRICT PR
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.raw_vertices_, &other->_impl_.raw_vertices_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.raw_normals_, &other->_impl_.raw_normals_, arena);
   swap(_impl_.point_count_, other->_impl_.point_count_);
 }
 

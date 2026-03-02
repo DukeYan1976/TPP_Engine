@@ -54,6 +54,7 @@ public:
                                    const SurfaceCalculationRequest* request,
                                    CalculationResponse* response) override {
         double* out_points = nullptr;
+        double* out_normals = nullptr;
         int out_count = 0;
         
         std::string step_data;
@@ -100,7 +101,7 @@ public:
             num_paths,
             start_direction,
             request->face_index(),
-            &out_points, &out_count
+            &out_points, &out_count, &out_normals
         );
         
         if (out_points == nullptr || out_count == 0) {
@@ -109,9 +110,17 @@ public:
         
         size_t size = out_count * 3 * sizeof(double);
         response->set_raw_vertices(reinterpret_cast<const char*>(out_points), size);
+        
+        if (out_normals != nullptr) {
+            response->set_raw_normals(reinterpret_cast<const char*>(out_normals), size);
+        }
+        
         response->set_point_count(out_count);
         
         FreeMockToolpath(out_points);
+        if (out_normals != nullptr) {
+            FreeMockToolpath(out_normals);
+        }
         
         const char* mode_name = (mode == 1) ? "contour" : "raster";
         const char* dir_name = (start_direction == 0) ? "U" : "V";

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11\x63\x61m_service.proto\x12\x03\x63\x61m\"_\n\x12\x43\x61lculationRequest\x12\r\n\x05X_min\x18\x01 \x01(\x01\x12\r\n\x05X_max\x18\x02 \x01(\x01\x12\r\n\x05Y_min\x18\x03 \x01(\x01\x12\r\n\x05Y_max\x18\x04 \x01(\x01\x12\r\n\x05Z_max\x18\x05 \x01(\x01\"\xb9\x01\n\x19SurfaceCalculationRequest\x12\x11\n\tstep_data\x18\x01 \x01(\x0c\x12\x0e\n\x06step_u\x18\x02 \x01(\x01\x12\x0e\n\x06step_v\x18\x03 \x01(\x01\x12\x15\n\rtoolpath_mode\x18\x04 \x01(\x05\x12\x11\n\tnum_paths\x18\x05 \x01(\x05\x12\x17\n\x0fstart_direction\x18\x06 \x01(\x05\x12\x12\n\nface_index\x18\x07 \x01(\x05\x12\x12\n\nmodel_hash\x18\x08 \x01(\t\"@\n\x13\x43\x61lculationResponse\x12\x14\n\x0craw_vertices\x18\x01 \x01(\x0c\x12\x13\n\x0bpoint_count\x18\x02 \x01(\x05\x32\xb5\x01\n\x15\x43\x61mCalculationService\x12\x46\n\x11\x43\x61lculateToolpath\x12\x17.cam.CalculationRequest\x1a\x18.cam.CalculationResponse\x12T\n\x18\x43\x61lculateSurfaceToolpath\x12\x1e.cam.SurfaceCalculationRequest\x1a\x18.cam.CalculationResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11\x63\x61m_service.proto\x12\x03\x63\x61m\"_\n\x12\x43\x61lculationRequest\x12\r\n\x05X_min\x18\x01 \x01(\x01\x12\r\n\x05X_max\x18\x02 \x01(\x01\x12\r\n\x05Y_min\x18\x03 \x01(\x01\x12\r\n\x05Y_max\x18\x04 \x01(\x01\x12\r\n\x05Z_max\x18\x05 \x01(\x01\"\xb9\x01\n\x19SurfaceCalculationRequest\x12\x11\n\tstep_data\x18\x01 \x01(\x0c\x12\x0e\n\x06step_u\x18\x02 \x01(\x01\x12\x0e\n\x06step_v\x18\x03 \x01(\x01\x12\x15\n\rtoolpath_mode\x18\x04 \x01(\x05\x12\x11\n\tnum_paths\x18\x05 \x01(\x05\x12\x17\n\x0fstart_direction\x18\x06 \x01(\x05\x12\x12\n\nface_index\x18\x07 \x01(\x05\x12\x12\n\nmodel_hash\x18\x08 \x01(\t\"U\n\x13\x43\x61lculationResponse\x12\x14\n\x0craw_vertices\x18\x01 \x01(\x0c\x12\x13\n\x0bpoint_count\x18\x02 \x01(\x05\x12\x13\n\x0braw_normals\x18\x03 \x01(\x0c\x32\xb5\x01\n\x15\x43\x61mCalculationService\x12\x46\n\x11\x43\x61lculateToolpath\x12\x17.cam.CalculationRequest\x1a\x18.cam.CalculationResponse\x12T\n\x18\x43\x61lculateSurfaceToolpath\x12\x1e.cam.SurfaceCalculationRequest\x1a\x18.cam.CalculationResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,7 +36,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SURFACECALCULATIONREQUEST']._serialized_start=124
   _globals['_SURFACECALCULATIONREQUEST']._serialized_end=309
   _globals['_CALCULATIONRESPONSE']._serialized_start=311
-  _globals['_CALCULATIONRESPONSE']._serialized_end=375
-  _globals['_CAMCALCULATIONSERVICE']._serialized_start=378
-  _globals['_CAMCALCULATIONSERVICE']._serialized_end=559
+  _globals['_CALCULATIONRESPONSE']._serialized_end=396
+  _globals['_CAMCALCULATIONSERVICE']._serialized_start=399
+  _globals['_CAMCALCULATIONSERVICE']._serialized_end=580
 # @@protoc_insertion_point(module_scope)

@@ -33,7 +33,8 @@ MOCK_CAM_API void GenerateSurfaceToolpath(
     int start_direction,
     int face_index,
     double** out_points,
-    int* out_count
+    int* out_count,
+    double** out_normals
 );
 
 MOCK_CAM_API void FreeMockToolpath(double* points);
