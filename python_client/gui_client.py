@@ -5,7 +5,7 @@ import os
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QPushButton, QLabel, QFileDialog,
                              QRadioButton, QButtonGroup, QSlider, QMessageBox,
-                             QGroupBox, QProgressBar)
+                             QGroupBox, QProgressBar, QCheckBox)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QDateTime
 
 from OCC.Display.backend import load_backend
@@ -32,6 +32,7 @@ from OCC.Core.V3d import V3d_DirectionalLight, V3d_AmbientLight, V3d_TypeOfLight
 from OCC.Core.Graphic3d import Graphic3d_MaterialAspect, Graphic3d_NameOfMaterial
 
 from cam_calculator import CamCalculator
+from motion_script_generator import generate_motion_script
 import numpy as np
 
 class ToolpathWorker(QThread):
@@ -80,7 +81,7 @@ class CamGuiClient(QMainWindow):
         self.toolpath_normals = None  # 刀轨法线
         self.toolpath_ais = None  # 保存刀轨AIS对象用于删除
         self.normals_ais = None  # 法线可视化对象
-        self.show_normals = False  # 是否显示法线
+        self.show_normals = True  # 默认显示刀轴
         self.calculator = CamCalculator()
         self.worker = None  # 后台计算线程
         self._callback_registered = False  # 回调是否已注册
@@ -150,6 +151,20 @@ class CamGuiClient(QMainWindow):
         param_layout = QVBoxLayout()
         param_layout.setSpacing(4)
         
+        # 轴数选择（水平布局）
+        axis_layout = QHBoxLayout()
+        axis_layout.addWidget(QLabel("轴数:"))
+        self.axis_group = QButtonGroup()
+        self.radio_3axis = QRadioButton("3轴")
+        self.radio_multi_axis = QRadioButton("3+轴")
+        self.radio_multi_axis.setChecked(True)
+        self.axis_group.addButton(self.radio_3axis, 3)
+        self.axis_group.addButton(self.radio_multi_axis, 5)
+        axis_layout.addWidget(self.radio_3axis)
+        axis_layout.addWidget(self.radio_multi_axis)
+        axis_layout.addStretch()
+        param_layout.addLayout(axis_layout)
+        
         # 刀路模式（水平布局）
         mode_layout = QHBoxLayout()
         mode_layout.addWidget(QLabel("模式:"))
@@ -191,6 +206,12 @@ class CamGuiClient(QMainWindow):
         )
         param_layout.addWidget(paths_label)
         param_layout.addWidget(self.paths_slider)
+        
+        # 刀轴方向反转
+        self.checkbox_invert_tool_axis = QCheckBox("反转刀轴方向")
+        self.checkbox_invert_tool_axis.setChecked(False)
+        param_layout.addWidget(self.checkbox_invert_tool_axis)
+        
         param_group.setLayout(param_layout)
         control_layout.addWidget(param_group)
         
@@ -258,11 +279,10 @@ class CamGuiClient(QMainWindow):
         display_layout.addStretch()
         view_layout.addLayout(display_layout)
         
-        # 法线显示开关
-        from PyQt5.QtWidgets import QCheckBox
-        self.checkbox_show_normals = QCheckBox("显示法线")
-        self.checkbox_show_normals.setChecked(False)
-        self.checkbox_show_normals.toggled.connect(self.toggle_normals_display)
+        # 刀轴显示开关（默认勾选）
+        self.checkbox_show_normals = QCheckBox("显示刀轴")
+        self.checkbox_show_normals.setChecked(True)  # 先设置状态
+        self.checkbox_show_normals.toggled.connect(self.toggle_normals_display)  # 后连接信号
         view_layout.addWidget(self.checkbox_show_normals)
         
         view_group.setLayout(view_layout)
@@ -621,13 +641,17 @@ class CamGuiClient(QMainWindow):
     
     def on_toolpath_calculated(self, points, normals):
         """刀路计算完成"""
+        # 根据用户设置决定刀轴方向
+        if self.checkbox_invert_tool_axis.isChecked():
+            normals = -normals  # 用户勾选反转：反转刀轴
+        
         self.toolpath_points = points
         self.toolpath_normals = normals
         
         # 显示刀轨
         self.display_toolpath(points)
         
-        # 如果法线显示开关打开，显示法线
+        # 如果刀轴显示开关打开，显示刀轴
         if self.show_normals:
             self.display_normals()
         
@@ -870,58 +894,66 @@ class CamGuiClient(QMainWindow):
             QMessageBox.critical(self, "错误", f"创建坐标系失败:\n{e}")
     
     def toggle_normals_display(self, checked):
-        """切换法线显示"""
+        """切换刀轴显示"""
         self.show_normals = checked
         if checked:
-            # 显示法线
+            # 有数据时才显示
             if self.toolpath_points is not None and self.toolpath_normals is not None:
                 self.display_normals()
         else:
-            # 隐藏法线
+            # 隐藏刀轴
             if self.normals_ais:
                 self.viewer._display.Context.Remove(self.normals_ais, True)
+                self.viewer._display.Repaint()
                 self.normals_ais = None
     
     def display_normals(self):
-        """显示刀轨法线"""
+        """显示刀轨刀轴"""
         if self.toolpath_points is None or self.toolpath_normals is None:
             return
         
-        # 清除旧的法线显示
+        # 清除旧的刀轴显示
         if self.normals_ais:
             self.viewer._display.Context.Remove(self.normals_ais, True)
             self.normals_ais = None
         
-        # 计算合理的法线长度（刀轨包围盒对角线的2%）
+        # 计算合理的刀轴长度（刀轨包围盒对角线的2%）
         points = self.toolpath_points
-        normals = -self.toolpath_normals  # 临时反转法线方向
+        normals = self.toolpath_normals  # 直接使用存储的刀轴方向
         bbox_min = np.min(points, axis=0)
         bbox_max = np.max(points, axis=0)
         diagonal = np.linalg.norm(bbox_max - bbox_min)
         normal_length = diagonal * 0.02
         
-        # 创建法线线段（每隔5个点显示一个法线，避免过于密集）
+        # 创建刀轴线段（每隔5个点显示一个刀轴，避免过于密集）
         from OCC.Core.TopoDS import TopoDS_Compound
         from OCC.Core.BRep import BRep_Builder
         compound = TopoDS_Compound()
         builder = BRep_Builder()
         builder.MakeCompound(compound)
         
-        step = max(1, len(points) // 100)  # 最多显示100个法线
+        step = max(1, len(points) // 100)  # 最多显示100个刀轴
         for i in range(0, len(points), step):
             p = points[i]
-            n = normals[i]  # 使用反转后的法线
+            n = normals[i]
+            
+            # 安全检查：跳过无效的法线
+            if not np.isfinite(n).all() or np.linalg.norm(n) < 1e-6:
+                continue
             
             # 起点和终点
-            p1 = gp_Pnt(p[0], p[1], p[2])
-            p2 = gp_Pnt(p[0] + n[0] * normal_length, 
-                        p[1] + n[1] * normal_length, 
-                        p[2] + n[2] * normal_length)
+            p1 = gp_Pnt(float(p[0]), float(p[1]), float(p[2]))
+            p2 = gp_Pnt(float(p[0] + n[0] * normal_length), 
+                        float(p[1] + n[1] * normal_length), 
+                        float(p[2] + n[2] * normal_length))
             
-            edge = BRepBuilderAPI_MakeEdge(p1, p2).Edge()
-            builder.Add(compound, edge)
+            try:
+                edge = BRepBuilderAPI_MakeEdge(p1, p2).Edge()
+                builder.Add(compound, edge)
+            except Exception:
+                continue  # 跳过无法创建的边
         
-        # 显示法线（深绿色）
+        # 显示刀轴（深绿色）
         self.normals_ais = AIS_Shape(compound)
         self.normals_ais.SetColor(Quantity_Color(0.0, 0.5, 0.0, Quantity_TOC_RGB))
         
@@ -936,7 +968,6 @@ class CamGuiClient(QMainWindow):
         
         self.viewer._display.Context.Display(self.normals_ais, False)
         self.viewer._display.Repaint()
-    
     def update_wcs_info(self):
         """更新工件坐标系变换信息显示"""
         # 提取原点
@@ -972,13 +1003,54 @@ class CamGuiClient(QMainWindow):
             QMessageBox.warning(self, "警告", "没有可输出的刀路数据")
             return
         
-        # 默认保存路径
+        # 选择输出格式
+        from PyQt5.QtWidgets import QDialog, QVBoxLayout, QRadioButton, QDialogButtonBox
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("选择输出格式")
+        layout = QVBoxLayout()
+        
+        radio_script = QRadioButton("运动脚本 (.py)")
+        radio_txt = QRadioButton("文本格式 (.txt)")
+        radio_script.setChecked(True)
+        
+        layout.addWidget(radio_script)
+        layout.addWidget(radio_txt)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        
+        dialog.setLayout(layout)
+        
+        if dialog.exec_() != QDialog.Accepted:
+            return
+        
+        # 根据选择调用不同的输出函数
+        if radio_script.isChecked():
+            self._export_motion_script()
+        else:
+            self._export_text_format()
+    
+    def _export_text_format(self):
+        """输出文本格式刀路"""
         from pathlib import Path
-        default_dir = str(Path.home() / "Documents")
-        default_name = f"toolpath_{QDateTime.currentDateTime().toString('yyyyMMdd_HHmmss')}.txt"
+        
+        # 默认输出目录：MotorCortex_MVP/scripts/CAMpaths
+        default_dir = Path("/Users/y/openclaw/myWorkspace/02_Develop/SourceCode/MotorCortex_MVP/scripts/CAMpaths")
+        
+        # 如果目录不存在，回退到用户文档目录
+        if not default_dir.exists():
+            default_dir = Path.home() / "Documents"
+        
+        # 生成简短文件名：tp_3ax_时间.txt 或 tp_5ax_时间.txt
+        axis_mode = self.axis_group.checkedId()
+        axis_str = "3ax" if axis_mode == 3 else "5ax"
+        timestamp = QDateTime.currentDateTime().toString('MMdd_HHmm')
+        default_name = f"tp_{axis_str}_{timestamp}.txt"
         default_path = str(Path(default_dir) / default_name)
         
-        # 文件保存对话框
         file_path, _ = QFileDialog.getSaveFileName(
             self, "输出刀路", default_path, "文本文件 (*.txt);;所有文件 (*)"
         )
@@ -987,17 +1059,14 @@ class CamGuiClient(QMainWindow):
             return
         
         try:
-            # 转换坐标
             points_wcs = self.transform_points_to_wcs(self.toolpath_points)
             normals_wcs = self.transform_normals_to_wcs(self.toolpath_normals)
             
-            # 写入文件
             with open(file_path, 'w') as f:
                 f.write("; Toolpath Output\n")
                 f.write(f"; Coordinate System: {'Custom' if self.wcs_mode == 1 else 'World'}\n")
                 f.write(f"; Total Points: {len(points_wcs)}\n")
                 
-                # 计算路径长度
                 total_length = 0.0
                 for i in range(len(points_wcs) - 1):
                     total_length += np.linalg.norm(points_wcs[i+1] - points_wcs[i])
@@ -1016,6 +1085,68 @@ class CamGuiClient(QMainWindow):
             
         except Exception as e:
             QMessageBox.critical(self, "错误", f"输出失败:\n{e}")
+    
+    def _export_motion_script(self):
+        """输出运动脚本"""
+        from pathlib import Path
+        
+        # 默认输出目录：MotorCortex_MVP/scripts/CAMpaths
+        default_dir = Path("/Users/y/openclaw/myWorkspace/02_Develop/SourceCode/MotorCortex_MVP/scripts/CAMpaths")
+        
+        # 如果目录不存在，回退到用户文档目录
+        if not default_dir.exists():
+            default_dir = Path.home() / "Documents"
+        
+        # 生成简短文件名：ms_3ax_时间.py 或 ms_5ax_时间.py
+        axis_mode = self.axis_group.checkedId()
+        axis_str = "3ax" if axis_mode == 3 else "5ax"
+        timestamp = QDateTime.currentDateTime().toString('MMdd_HHmm')
+        default_name = f"ms_{axis_str}_{timestamp}.py"
+        default_path = str(Path(default_dir) / default_name)
+        
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "输出运动脚本", default_path, "Python脚本 (*.py);;所有文件 (*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            # 转换坐标
+            points_wcs = self.transform_points_to_wcs(self.toolpath_points)
+            normals_wcs = self.transform_normals_to_wcs(self.toolpath_normals)
+            
+            # 准备元数据
+            metadata = {
+                'model_name': os.path.basename(self.step_file_path) if self.step_file_path else 'Unknown',
+                'toolpath_mode': self.mode_group.checkedId(),
+                'num_paths': self.paths_slider.value()
+            }
+            
+            # 获取轴数模式
+            axis_mode = self.axis_group.checkedId()
+            
+            # 生成脚本
+            generate_motion_script(
+                toolpath_points=points_wcs,
+                toolpath_normals=normals_wcs,
+                output_path=file_path,
+                feed_rapid=3000.0,  # 快速移动 mm/s（非切削，快）
+                feed_cut=300.0,     # 切削进给 mm/s（切削，慢且稳定）
+                retract_height=5.0, # 抬刀高度 mm
+                axis_mode=axis_mode,
+                metadata=metadata
+            )
+            
+            axis_mode_str = "3轴" if axis_mode == 3 else "3+轴"
+            QMessageBox.information(
+                self, "成功", 
+                f"运动脚本已生成:\n{file_path}\n\n"
+                f"轴数: {axis_mode_str}"
+            )
+            
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"脚本生成失败:\n{e}")
     
     def transform_points_to_wcs(self, points):
         """将点从世界坐标系转换到工件坐标系"""
