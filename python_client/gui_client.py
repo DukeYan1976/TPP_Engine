@@ -446,9 +446,9 @@ class CamGuiClient(QMainWindow):
             self.viewer._display.Context.Remove(self.selected_face_ais, True)
             self.selected_face_ais = None
         
-        # 高亮显示选中的面（红色，半透明，不参与选择）
+        # 高亮显示选中的面（桔黄色，半透明，不参与选择）
         self.selected_face_ais = AIS_Shape(self.selected_face)
-        self.selected_face_ais.SetColor(Quantity_Color(1.0, 0.2, 0.2, Quantity_TOC_RGB))
+        self.selected_face_ais.SetColor(Quantity_Color(1.0, 0.6, 0.0, Quantity_TOC_RGB))
         self.selected_face_ais.SetTransparency(0.3)
         
         # selectionMode=-1 表示不激活任何选择模式，避免干扰面选择
