@@ -26,6 +26,8 @@ from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_MakeEdge, BRepBuilderAPI_Make
 from OCC.Core.gp import gp_Pnt
 from OCC.Core.Prs3d import Prs3d_LineAspect
 from OCC.Core.Aspect import Aspect_TOL_SOLID
+from OCC.Core.V3d import V3d_DirectionalLight, V3d_AmbientLight, V3d_TypeOfLight
+from OCC.Core.Graphic3d import Graphic3d_MaterialAspect, Graphic3d_NameOfMaterial
 
 from cam_calculator import CamCalculator
 import numpy as np
@@ -220,12 +222,43 @@ class CamGuiClient(QMainWindow):
         view_group.setLayout(view_layout)
         control_layout.addWidget(view_group)
         main_layout.addWidget(control_panel, stretch=1)
+    
+    def setup_lighting(self):
+        """配置UG/NX风格光照系统"""
+        view = self.viewer._display.View
         
-        # 设置3D视图背景和选择模式
-        # 深色背景
-        self.viewer._display.View.SetBackgroundColor(Quantity_Color(0.2, 0.2, 0.25, Quantity_TOC_RGB))
-        # 设置为面选择模式
-        self.viewer._display.SetSelectionModeFace()
+        # 清除默认光源
+        view.InitActiveLights()
+        while view.MoreActiveLights():
+            view.ActiveLight().SetEnabled(False)
+            view.NextActiveLights()
+        
+        # 环境光（柔和全局照明，强度30%）
+        ambient = V3d_AmbientLight()
+        ambient.SetIntensity(0.3)
+        view.SetLightOn(ambient)
+        
+        # 主方向光（右上45度，强度80%）
+        main_light = V3d_DirectionalLight(V3d_TypeOfLight.V3d_DIRECTIONAL)
+        main_light.SetDirection(-1, -1, -1)
+        main_light.SetIntensity(0.8)
+        view.SetLightOn(main_light)
+        
+        # 辅助光（左侧补光，强度40%）
+        fill_light = V3d_DirectionalLight(V3d_TypeOfLight.V3d_DIRECTIONAL)
+        fill_light.SetDirection(1, -0.5, -0.5)
+        fill_light.SetIntensity(0.4)
+        view.SetLightOn(fill_light)
+        
+        # 启用头灯（跟随相机）
+        view.SetLightOn()
+    
+    def setup_material(self):
+        """创建金属材质（铝合金风格）"""
+        material = Graphic3d_MaterialAspect(Graphic3d_NameOfMaterial.Graphic3d_NOM_ALUMINIUM)
+        material.SetShininess(0.8)  # 光泽度 (0-1)
+        return material
+    
     
     def _reset_state(self):
         """重置模型相关状态，释放旧资源"""
@@ -312,22 +345,19 @@ class CamGuiClient(QMainWindow):
             # 大文件或面数多时整体显示，否则逐面显示
             if is_large_file or len(self.faces) > 500:
                 # 整体显示，面选择通过几何匹配
-                self.viewer._display.DisplayShape(
-                    self.shape,
-                    color=Quantity_Color(0.75, 0.75, 0.8, Quantity_TOC_RGB),
-                    transparency=0.0,
-                    update=True
-                )
+                ais_shape = AIS_Shape(self.shape)
+                ais_shape.SetColor(Quantity_Color(0.75, 0.75, 0.8, Quantity_TOC_RGB))
+                ais_shape.SetMaterial(self.setup_material())
+                self.viewer._display.Context.Display(ais_shape, True)
                 self.status_label.setText(f"已加载 {len(self.faces)} 个面（整体显示，几何匹配选择）")
             else:
                 # 逐面显示
+                material = self.setup_material()
                 for face in self.faces:
-                    self.viewer._display.DisplayShape(
-                        face,
-                        color=Quantity_Color(0.75, 0.75, 0.8, Quantity_TOC_RGB),
-                        transparency=0.0,
-                        update=False
-                    )
+                    ais_face = AIS_Shape(face)
+                    ais_face.SetColor(Quantity_Color(0.75, 0.75, 0.8, Quantity_TOC_RGB))
+                    ais_face.SetMaterial(material)
+                    self.viewer._display.Context.Display(ais_face, False)
                 
                 self.viewer._display.Repaint()
                 self.status_label.setText(f"已加载 {len(self.faces)} 个面，请点击选择一个面")
